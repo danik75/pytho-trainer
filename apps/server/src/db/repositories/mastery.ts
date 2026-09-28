@@ -42,3 +42,9 @@ export function getMasteryRecordByTopic(
     MasteryRecordRow | undefined;
   return row ? mapRow(row) : null;
 }
+
+export function markMasteryInProgress(db: Database.Database, topicId: string): void {
+  db.prepare(
+    "UPDATE mastery_records SET status = 'in_progress', last_updated_at = datetime('now') WHERE topic_id = ?",
+  ).run(topicId);
+}

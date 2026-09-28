@@ -1,12 +1,17 @@
+const mockExeca = jest.fn();
+jest.mock('execa', () => ({ execa: mockExeca }), { virtual: true });
+
 import { createTestDb } from './testUtils/createTestDb';
 import { createFakeAiClient } from './testUtils/fakeAiClient';
 import { buildApp } from './app';
-import type { CurriculumGeneration } from '@pytho-trainer/shared';
+import type { CurriculumGeneration, ExerciseGeneration } from '@pytho-trainer/shared';
+
+const SANDBOX_CONFIG = { image: 'pytho-trainer-sandbox', timeoutMs: 5000, memoryMb: 128 };
 
 function buildTestApp(defaultAiResponse?: unknown) {
   const db = createTestDb();
   const aiClient = createFakeAiClient(defaultAiResponse);
-  return { app: buildApp({ db, aiClient }), db, aiClient };
+  return { app: buildApp({ db, aiClient, sandboxConfig: SANDBOX_CONFIG }), db, aiClient };
 }
 
 const SAMPLE_CURRICULUM: CurriculumGeneration = {
@@ -44,7 +49,19 @@ const SAMPLE_CURRICULUM: CurriculumGeneration = {
   ],
 };
 
+const SAMPLE_EXERCISE: ExerciseGeneration = {
+  prompt: 'Write a function that adds two numbers.',
+  starterCode: 'def add(a, b):\n    pass\n',
+  difficulty: 'intro',
+  targetWeakSpots: [],
+  hiddenTests: [{ name: 'adds two numbers', functionName: 'add', args: [2, 3], expected: 5 }],
+};
+
 describe('app routes', () => {
+  beforeEach(() => {
+    mockExeca.mockReset();
+  });
+
   it('GET /api/health returns ok', async () => {
     const { app } = buildTestApp();
     const response = await app.inject({ method: 'GET', url: '/api/health' });
@@ -132,10 +149,131 @@ describe('app routes', () => {
     aiClient.createToolMessage = async () => {
       throw new Error('boom');
     };
-    const app = buildApp({ db, aiClient });
+    const app = buildApp({ db, aiClient, sandboxConfig: SANDBOX_CONFIG });
 
     const response = await app.inject({ method: 'POST', url: '/api/curricula' });
     expect(response.statusCode).toBe(500);
     expect(response.json().error.code).toBe('internal_error');
+  });
+
+  describe('topics, sessions, and exercise submission', () => {
+    async function setUpCurriculumAndTopic(app: ReturnType<typeof buildApp>) {
+      await app.inject({ method: 'POST', url: '/api/curricula' });
+      const roadmap = (await app.inject({ method: 'GET', url: '/api/roadmap' })).json();
+      const availableTopicId = roadmap.tracks[0].topics[0].topicId as string;
+      const lockedTopicId = roadmap.tracks[1].topics[0].topicId as string;
+      return { availableTopicId, lockedTopicId };
+    }
+
+    it('GET /api/topics/:topicId returns 404 for an unknown topic', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({ method: 'GET', url: '/api/topics/missing' });
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('POST /api/topics/:topicId/start returns 409 for a locked topic', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { lockedTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${lockedTopicId}/start`,
+      });
+      expect(response.statusCode).toBe(409);
+    });
+
+    it('starts an available topic, generates its first exercise, and updates roadmap/mastery status', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const startResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/start`,
+      });
+      expect(startResponse.statusCode).toBe(201);
+      const { session, exercise } = startResponse.json();
+      expect(exercise.prompt).toBe(SAMPLE_EXERCISE.prompt);
+
+      const topicResponse = await app.inject({
+        method: 'GET',
+        url: `/api/topics/${availableTopicId}`,
+      });
+      expect(topicResponse.json().mastery.status).toBe('in_progress');
+
+      const sessionResponse = await app.inject({
+        method: 'GET',
+        url: `/api/sessions/${session.id}`,
+      });
+      expect(sessionResponse.statusCode).toBe(200);
+
+      const currentExerciseResponse = await app.inject({
+        method: 'GET',
+        url: `/api/sessions/${session.id}/exercises/current`,
+      });
+      expect(currentExerciseResponse.statusCode).toBe(200);
+      expect(currentExerciseResponse.json().id).toBe(exercise.id);
+    });
+
+    it('GET /api/sessions/:sessionId returns 404 for an unknown session', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({ method: 'GET', url: '/api/sessions/missing' });
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('GET /api/sessions/:sessionId/exercises/current returns 404 for an unknown session', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/sessions/missing/exercises/current',
+      });
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('POST /api/exercises/:exerciseId/submit runs the sandbox and persists the result', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const startResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/start`,
+      });
+      const { exercise } = startResponse.json();
+
+      mockExeca.mockResolvedValue({
+        stdout:
+          '##RESULTS##' +
+          JSON.stringify({
+            stdout: '',
+            stderr: '',
+            testResults: [{ name: 'adds two numbers', passed: true }],
+          }),
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      const submitResponse = await app.inject({
+        method: 'POST',
+        url: `/api/exercises/${exercise.id}/submit`,
+        payload: { code: 'def add(a, b):\n    return a + b\n' },
+      });
+
+      expect(submitResponse.statusCode).toBe(201);
+      const submission = submitResponse.json();
+      expect(submission.testResults).toEqual([{ name: 'adds two numbers', passed: true }]);
+    });
+
+    it('POST /api/exercises/:exerciseId/submit returns 404 for an unknown exercise', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/exercises/missing/submit',
+        payload: { code: 'pass' },
+      });
+      expect(response.statusCode).toBe(404);
+    });
   });
 });

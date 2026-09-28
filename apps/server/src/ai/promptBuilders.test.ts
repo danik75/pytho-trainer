@@ -1,4 +1,4 @@
-import { buildCurriculumUserMessage } from './promptBuilders';
+import { buildCurriculumUserMessage, buildExerciseUserMessage } from './promptBuilders';
 
 describe('buildCurriculumUserMessage', () => {
   it('describes known catalog domains with their title and description', () => {
@@ -33,5 +33,35 @@ describe('buildCurriculumUserMessage', () => {
     });
 
     expect(message).toContain('none selected');
+  });
+});
+
+describe('buildExerciseUserMessage', () => {
+  it('includes topic details, difficulty, and weak spots when present', () => {
+    const message = buildExerciseUserMessage({
+      topicTitle: 'Loops',
+      topicDescription: 'For and while loops',
+      learningObjectives: ['Write a for loop'],
+      difficulty: 'intro',
+      weakSpots: ['off-by-one errors'],
+      recentExercisePrompts: ['Sum a list'],
+    });
+
+    expect(message).toContain('Loops');
+    expect(message).toContain('off-by-one errors');
+    expect(message).toContain('Sum a list');
+  });
+
+  it('notes when there are no weak spots or prior exercises yet', () => {
+    const message = buildExerciseUserMessage({
+      topicTitle: 'Loops',
+      topicDescription: 'For and while loops',
+      learningObjectives: ['Write a for loop'],
+      difficulty: 'intro',
+      weakSpots: [],
+      recentExercisePrompts: [],
+    });
+
+    expect(message).toContain('(none yet)');
   });
 });

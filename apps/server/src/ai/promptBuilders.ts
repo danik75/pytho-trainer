@@ -1,4 +1,4 @@
-import { DOMAIN_CATALOG } from '@pytho-trainer/shared';
+import { DOMAIN_CATALOG, type Difficulty } from '@pytho-trainer/shared';
 
 export interface CurriculumGenerationInput {
   goals: string;
@@ -35,4 +35,35 @@ Domains to deepen after Foundations:
 ${domainLines}
 
 Design the curriculum now.`;
+}
+
+export interface ExerciseGenerationInput {
+  topicTitle: string;
+  topicDescription: string;
+  learningObjectives: string[];
+  difficulty: Difficulty;
+  weakSpots: string[];
+  recentExercisePrompts: string[];
+}
+
+export const EXERCISE_SYSTEM_PROMPT = `You are an expert Python instructor generating a single coding exercise for a student studying a specific topic.
+
+Rules:
+- The exercise must be solvable by writing one or more Python functions.
+- Provide starter code: function signature(s) with a short docstring and a body that raises NotImplementedError or contains "pass".
+- Provide at least one hidden test: a function name to call, concrete positional arguments, and the exact expected return value. Tests must be fully deterministic - no randomness, no floating point rounding ambiguity, no reliance on dict/set ordering.
+- Never repeat a prompt the student has already seen for this topic.
+- Target the given difficulty tier, and when weak spots are listed, design the exercise to directly probe those weak spots.`;
+
+export function buildExerciseUserMessage(input: ExerciseGenerationInput): string {
+  return `Topic: ${input.topicTitle}
+Description: ${input.topicDescription}
+Learning objectives: ${input.learningObjectives.join('; ')}
+Target difficulty: ${input.difficulty}
+Known weak spots to target: ${input.weakSpots.length > 0 ? input.weakSpots.join(', ') : '(none yet)'}
+Exercises already given for this topic (do not repeat): ${
+    input.recentExercisePrompts.length > 0 ? input.recentExercisePrompts.join(' | ') : '(none yet)'
+  }
+
+Generate the next exercise now.`;
 }

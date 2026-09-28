@@ -67,3 +67,7 @@ export function getRoadmapEntryByTopic(
     RoadmapEntryRow | undefined;
   return row ? mapRow(row) : null;
 }
+
+export function markRoadmapEntryInProgress(db: Database.Database, topicId: string): void {
+  db.prepare("UPDATE roadmap_entries SET status = 'in_progress' WHERE topic_id = ?").run(topicId);
+}

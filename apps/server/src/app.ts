@@ -7,15 +7,20 @@ import { registerDomainRoutes } from './routes/domains';
 import { registerOnboardingRoutes } from './routes/onboarding';
 import { registerCurriculaRoutes } from './routes/curricula';
 import { registerRoadmapRoutes } from './routes/roadmap';
+import { registerTopicRoutes } from './routes/topics';
+import { registerSessionRoutes } from './routes/sessions';
+import { registerExerciseRoutes } from './routes/exercises';
 import type { AiClient } from './ai/client';
-import { AiGenerationError, NotFoundError } from './errors';
+import type { SandboxConfig } from './sandbox/runner';
+import { AiGenerationError, InvalidStateError, NotFoundError } from './errors';
 
 export interface AppDependencies {
   db: Database.Database;
   aiClient: AiClient;
+  sandboxConfig: SandboxConfig;
 }
 
-export function buildApp({ db, aiClient }: AppDependencies): FastifyInstance {
+export function buildApp({ db, aiClient, sandboxConfig }: AppDependencies): FastifyInstance {
   const app = Fastify({ logger: true });
 
   registerHealthRoutes(app);
@@ -24,6 +29,9 @@ export function buildApp({ db, aiClient }: AppDependencies): FastifyInstance {
   registerOnboardingRoutes(app, db);
   registerCurriculaRoutes(app, db, aiClient);
   registerRoadmapRoutes(app, db);
+  registerTopicRoutes(app, db, aiClient);
+  registerSessionRoutes(app, db);
+  registerExerciseRoutes(app, db, sandboxConfig);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -33,6 +41,9 @@ export function buildApp({ db, aiClient }: AppDependencies): FastifyInstance {
     }
     if (error instanceof NotFoundError) {
       return reply.status(404).send({ error: { code: 'not_found', message: error.message } });
+    }
+    if (error instanceof InvalidStateError) {
+      return reply.status(409).send({ error: { code: 'invalid_state', message: error.message } });
     }
     if (error instanceof AiGenerationError) {
       return reply

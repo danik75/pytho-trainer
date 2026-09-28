@@ -15,7 +15,12 @@ runMigrations(db);
 ensureLocalUser(db);
 
 const aiClient = createAnthropicClient(config.anthropicApiKey);
-const app = buildApp({ db, aiClient });
+const sandboxConfig = {
+  image: config.sandboxImage,
+  timeoutMs: config.sandboxTimeoutMs,
+  memoryMb: config.sandboxMemoryMb,
+};
+const app = buildApp({ db, aiClient, sandboxConfig });
 
 app.listen({ port: config.port, host: '0.0.0.0' }).catch((err) => {
   app.log.error(err);

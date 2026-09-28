@@ -3,8 +3,13 @@ import { ensureLocalUser, LOCAL_USER_ID } from './users';
 import { insertCurriculum } from './curricula';
 import { insertTrack } from './tracks';
 import { insertTopic } from './topics';
-import { insertRoadmapEntry, listRoadmapByCurriculum, getRoadmapEntryByTopic } from './roadmap';
-import { insertMasteryRecord, getMasteryRecordByTopic } from './mastery';
+import {
+  insertRoadmapEntry,
+  listRoadmapByCurriculum,
+  getRoadmapEntryByTopic,
+  markRoadmapEntryInProgress,
+} from './roadmap';
+import { insertMasteryRecord, getMasteryRecordByTopic, markMasteryInProgress } from './mastery';
 
 function setupTopic(db: ReturnType<typeof createTestDb>) {
   ensureLocalUser(db);
@@ -64,6 +69,16 @@ describe('roadmap repository', () => {
     expect(entry.status).toBe('available');
     expect(entry.unlockedAt).not.toBeNull();
   });
+
+  it('marks an entry in_progress', () => {
+    const db = createTestDb();
+    const { curriculum, topic } = setupTopic(db);
+    insertRoadmapEntry(db, { curriculumId: curriculum.id, topicId: topic.id, sequenceIndex: 0 });
+
+    markRoadmapEntryInProgress(db, topic.id);
+
+    expect(getRoadmapEntryByTopic(db, topic.id)?.status).toBe('in_progress');
+  });
 });
 
 describe('mastery repository', () => {
@@ -80,5 +95,15 @@ describe('mastery repository', () => {
   it('returns null for a topic without a mastery record', () => {
     const db = createTestDb();
     expect(getMasteryRecordByTopic(db, 'missing')).toBeNull();
+  });
+
+  it('marks a mastery record in_progress', () => {
+    const db = createTestDb();
+    const { topic } = setupTopic(db);
+    insertMasteryRecord(db, topic.id);
+
+    markMasteryInProgress(db, topic.id);
+
+    expect(getMasteryRecordByTopic(db, topic.id)?.status).toBe('in_progress');
   });
 });
