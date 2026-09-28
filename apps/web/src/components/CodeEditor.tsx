@@ -1,4 +1,5 @@
 import Editor from '@monaco-editor/react';
+import { useTheme } from '../theme/ThemeContext';
 
 interface CodeEditorProps {
   value: string;
@@ -6,17 +7,23 @@ interface CodeEditorProps {
 }
 
 export function CodeEditor({ value, onChange }: CodeEditorProps) {
+  const { theme } = useTheme();
+
   return (
-    <Editor
-      height="320px"
-      language="python"
-      value={value}
-      onChange={(next) => onChange(next ?? '')}
-      options={{
-        minimap: { enabled: false },
-        fontSize: 14,
-        tabSize: 4,
-      }}
-    />
+    <div className="editor-frame">
+      <Editor
+        height="480px"
+        language="python"
+        theme={theme === 'dark' ? 'vs-dark' : 'light'}
+        value={value}
+        onChange={(next) => onChange(next ?? '')}
+        options={{
+          minimap: { enabled: false },
+          fontSize: 14,
+          tabSize: 4,
+          padding: { top: 12 },
+        }}
+      />
+    </div>
   );
 }

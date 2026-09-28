@@ -20,7 +20,12 @@ function StartTopicButton({ topicId, roadmapStatus }: { topicId: string; roadmap
   if (roadmapStatus !== 'available' && roadmapStatus !== 'in_progress') return null;
 
   return (
-    <button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+    <button
+      type="button"
+      className="btn btn--primary btn--small"
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+    >
       {mutation.isPending ? 'Starting...' : roadmapStatus === 'available' ? 'Start' : 'Continue'}
     </button>
   );
@@ -34,43 +39,77 @@ export function RoadmapPage() {
       !(err instanceof ApiError && err.status === 404) && failureCount < 2,
   });
 
-  if (isLoading) return <p>Loading your roadmap...</p>;
+  if (isLoading) return <p className="loading-state">Loading your roadmap...</p>;
 
   if (error instanceof ApiError && error.status === 404) {
     return (
-      <div>
-        <p>You don’t have a curriculum yet.</p>
-        <Link to="/onboarding">Set up your curriculum</Link>
+      <div className="empty-state">
+        <p>You don&apos;t have a curriculum yet.</p>
+        <Link to="/onboarding" className="btn btn--primary">
+          Set up your curriculum
+        </Link>
       </div>
     );
   }
 
   if (error) {
-    return <p role="alert">Could not load your roadmap: {(error as Error).message}</p>;
+    return (
+      <div className="alert alert--error" role="alert">
+        Could not load your roadmap: {(error as Error).message}
+      </div>
+    );
   }
 
   if (!data) return null;
 
   return (
-    <div>
-      <h1>{data.title}</h1>
-      <p>{data.summary}</p>
+    <div className="page">
+      <div className="page-header">
+        <h1 className="page-header__title">{data.title}</h1>
+        <p className="page-header__subtitle">{data.summary}</p>
+      </div>
+
       <p>
-        <Link to="/overview">View learning overview</Link>
+        <Link to="/overview">View learning overview →</Link>
       </p>
 
       {data.tracks.map((track) => (
-        <section key={track.trackId}>
-          <h2>
-            {track.title}
-            {track.kind === 'foundations' ? ' (Foundations)' : ''}
-          </h2>
-          <p>{track.description}</p>
-          <ul>
+        <section className="track" key={track.trackId}>
+          <div className="track__header">
+            <h2>{track.title}</h2>
+            {track.kind === 'foundations' && (
+              <span className="badge badge--available">Foundations</span>
+            )}
+          </div>
+          <p className="track__description">{track.description}</p>
+          <ul className="topic-list">
             {track.topics.map((topic) => (
-              <li key={topic.topicId}>
-                <strong>{topic.title}</strong> - {STATUS_LABELS[topic.roadmapStatus]} (mastery:{' '}
-                {Math.round(topic.masteryScore * 100)}%){' '}
+              <li className="topic-row" key={topic.topicId}>
+                <div className="topic-row__main">
+                  <div className="topic-row__title">{topic.title}</div>
+                  <div className="topic-row__meta">
+                    <span className={`badge badge--${topic.roadmapStatus}`}>
+                      {STATUS_LABELS[topic.roadmapStatus]}
+                    </span>
+                    <span>{Math.round(topic.masteryScore * 100)}% mastery</span>
+                  </div>
+                </div>
+                <div className="topic-row__mastery">
+                  <div className="progress">
+                    <div
+                      className="progress__bar"
+                      style={{
+                        width: `${Math.round(topic.masteryScore * 100)}%`,
+                        background:
+                          topic.masteryScore >= 0.8
+                            ? 'var(--color-success)'
+                            : topic.masteryScore >= 0.5
+                              ? 'var(--color-warning)'
+                              : 'var(--color-danger)',
+                      }}
+                    />
+                  </div>
+                </div>
                 <StartTopicButton topicId={topic.topicId} roadmapStatus={topic.roadmapStatus} />
               </li>
             ))}
@@ -78,7 +117,7 @@ export function RoadmapPage() {
         </section>
       ))}
 
-      <section>
+      <section className="card">
         <TeachMeRequestBox />
       </section>
     </div>

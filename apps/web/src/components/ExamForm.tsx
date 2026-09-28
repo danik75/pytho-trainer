@@ -22,24 +22,26 @@ export function ExamForm({ questions, onSubmit, disabled }: ExamFormProps) {
   return (
     <form onSubmit={handleSubmit}>
       {questions.map((question, index) => (
-        <fieldset key={question.id}>
+        <fieldset className="exam-question" key={question.id}>
           <legend>
             Question {index + 1}: {question.questionMd}
           </legend>
           {question.questionType === 'multiple_choice' && question.choices ? (
-            question.choices.map((choice) => (
-              <label key={choice} style={{ display: 'block' }}>
-                <input
-                  type="radio"
-                  name={question.id}
-                  value={choice}
-                  checked={answers[question.id] === choice}
-                  onChange={() => setAnswer(question.id, choice)}
-                  disabled={disabled}
-                />
-                {choice}
-              </label>
-            ))
+            <div className="option-list">
+              {question.choices.map((choice) => (
+                <label className="option" key={choice}>
+                  <input
+                    type="radio"
+                    name={question.id}
+                    value={choice}
+                    checked={answers[question.id] === choice}
+                    onChange={() => setAnswer(question.id, choice)}
+                    disabled={disabled}
+                  />
+                  {choice}
+                </label>
+              ))}
+            </div>
           ) : (
             <textarea
               value={answers[question.id] ?? ''}
@@ -50,7 +52,7 @@ export function ExamForm({ questions, onSubmit, disabled }: ExamFormProps) {
           )}
         </fieldset>
       ))}
-      <button type="submit" disabled={disabled}>
+      <button type="submit" className="btn btn--primary" disabled={disabled}>
         {disabled ? 'Grading...' : 'Submit answers'}
       </button>
     </form>

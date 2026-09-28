@@ -7,12 +7,14 @@ interface DifficultiesPanelProps {
 
 export function DifficultiesPanel({ difficulties, strugglingTopics }: DifficultiesPanelProps) {
   return (
-    <section>
-      <h2>Difficulties</h2>
+    <section className="section card">
+      <h2 className="section__title">Difficulties</h2>
       {strugglingTopics.length > 0 && (
-        <div>
-          <strong>Struggling topics:</strong>
-          <ul>
+        <div className="difficulties-group">
+          <p>
+            <strong>Struggling topics:</strong>
+          </p>
+          <ul className="difficulty-list">
             {strugglingTopics.map((topic) => (
               <li key={topic.topicId}>{topic.title}</li>
             ))}
@@ -20,10 +22,10 @@ export function DifficultiesPanel({ difficulties, strugglingTopics }: Difficulti
         </div>
       )}
       {difficulties.length > 0 ? (
-        <ul>
+        <ul className="difficulty-list">
           {difficulties.map((difficulty) => (
             <li key={difficulty.weakSpot}>
-              {difficulty.weakSpot} (seen {difficulty.occurrences}x)
+              {difficulty.weakSpot} <span className="badge">seen {difficulty.occurrences}x</span>
             </li>
           ))}
         </ul>

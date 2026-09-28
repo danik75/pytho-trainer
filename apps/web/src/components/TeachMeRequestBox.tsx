@@ -19,19 +19,33 @@ export function TeachMeRequestBox() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <label htmlFor="teach-topic">Ask the tutor to teach you something</label>
-      <input
-        id="teach-topic"
-        type="text"
-        placeholder="e.g. decorators, list comprehensions..."
-        value={topic}
-        onChange={(event) => setTopic(event.target.value)}
-        disabled={mutation.isPending}
-      />
-      <button type="submit" disabled={mutation.isPending || !topic.trim()}>
-        {mutation.isPending ? 'Preparing lesson...' : 'Teach me'}
-      </button>
-      {mutation.isError && <p role="alert">{(mutation.error as Error).message}</p>}
+      <div className="form-field form-field--tight">
+        <label className="form-label" htmlFor="teach-topic">
+          Ask the tutor to teach you something
+        </label>
+        <div className="inline-add">
+          <input
+            id="teach-topic"
+            type="text"
+            placeholder="e.g. decorators, list comprehensions..."
+            value={topic}
+            onChange={(event) => setTopic(event.target.value)}
+            disabled={mutation.isPending}
+          />
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={mutation.isPending || !topic.trim()}
+          >
+            {mutation.isPending ? 'Preparing...' : 'Teach me'}
+          </button>
+        </div>
+      </div>
+      {mutation.isError && (
+        <div className="alert alert--error" role="alert">
+          {(mutation.error as Error).message}
+        </div>
+      )}
     </form>
   );
 }

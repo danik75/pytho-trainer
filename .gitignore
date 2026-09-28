@@ -8,3 +8,4 @@ data/*.db-shm
 .env
 *.tsbuildinfo
 .DS_Store
+.idea/

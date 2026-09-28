@@ -68,88 +68,123 @@ export function OnboardingPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h1>Let’s build your curriculum</h1>
+    <div className="page">
+      <div className="page-header">
+        <h1 className="page-header__title">Let&apos;s build your curriculum</h1>
+        <p className="page-header__subtitle">
+          A few quick questions so the AI can tailor your roadmap.
+        </p>
+      </div>
 
-      <label htmlFor="goals">What do you want to get out of learning Python?</label>
-      <textarea
-        id="goals"
-        value={goals}
-        onChange={(event) => setGoals(event.target.value)}
-        rows={3}
-        required
-      />
-
-      <fieldset>
-        <legend>Self-assessed level</legend>
-        {SELF_ASSESSED_LEVELS.map((level) => (
-          <label key={level.value}>
-            <input
-              type="radio"
-              name="selfAssessedLevel"
-              value={level.value}
-              checked={selfAssessedLevel === level.value}
-              onChange={() => setSelfAssessedLevel(level.value)}
+      <form onSubmit={handleSubmit}>
+        <div className="card">
+          <div className="form-field">
+            <label className="form-label" htmlFor="goals">
+              What do you want to get out of learning Python?
+            </label>
+            <textarea
+              id="goals"
+              value={goals}
+              onChange={(event) => setGoals(event.target.value)}
+              rows={3}
+              required
             />
-            {level.label}
-          </label>
-        ))}
-      </fieldset>
-
-      <fieldset>
-        <legend>Quick diagnostic</legend>
-        {DIAGNOSTIC_QUESTIONS.map(({ key, question }) => (
-          <div key={key}>
-            <span>{question}</span>
-            {['yes', 'a little', 'no'].map((option) => (
-              <label key={option}>
-                <input
-                  type="radio"
-                  name={key}
-                  value={option}
-                  checked={diagnosticAnswers[key] === option}
-                  onChange={() => setDiagnosticAnswers((prev) => ({ ...prev, [key]: option }))}
-                />
-                {option}
-              </label>
-            ))}
           </div>
-        ))}
-      </fieldset>
 
-      <fieldset>
-        <legend>Domains to deepen after Foundations (optional)</legend>
-        {catalog?.map((domain) => (
-          <label key={domain.slug} title={domain.description}>
-            <input
-              type="checkbox"
-              checked={selectedDomains.includes(domain.slug)}
-              onChange={() => toggleDomain(domain.slug)}
-            />
-            {domain.title}
-          </label>
-        ))}
-        <div>
-          <input
-            type="text"
-            placeholder="Add a custom domain"
-            value={customDomain}
-            onChange={(event) => setCustomDomain(event.target.value)}
-          />
-          <button type="button" onClick={addCustomDomain}>
-            Add
+          <fieldset>
+            <legend>Self-assessed level</legend>
+            <div className="option-list">
+              {SELF_ASSESSED_LEVELS.map((level) => (
+                <label className="option" key={level.value}>
+                  <input
+                    type="radio"
+                    name="selfAssessedLevel"
+                    value={level.value}
+                    checked={selfAssessedLevel === level.value}
+                    onChange={() => setSelfAssessedLevel(level.value)}
+                  />
+                  {level.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Quick diagnostic</legend>
+            {DIAGNOSTIC_QUESTIONS.map(({ key, question }) => (
+              <div className="diagnostic-question" key={key}>
+                <span className="diagnostic-question__prompt">{question}</span>
+                <div className="option-list option-list--inline">
+                  {['yes', 'a little', 'no'].map((option) => (
+                    <label className="option" key={option}>
+                      <input
+                        type="radio"
+                        name={key}
+                        value={option}
+                        checked={diagnosticAnswers[key] === option}
+                        onChange={() =>
+                          setDiagnosticAnswers((prev) => ({ ...prev, [key]: option }))
+                        }
+                      />
+                      {option}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </fieldset>
+
+          <fieldset>
+            <legend>Domains to deepen after Foundations (optional)</legend>
+            <div className="option-list option-list--grid">
+              {catalog?.map((domain) => (
+                <label className="option" key={domain.slug} title={domain.description}>
+                  <input
+                    type="checkbox"
+                    checked={selectedDomains.includes(domain.slug)}
+                    onChange={() => toggleDomain(domain.slug)}
+                  />
+                  {domain.title}
+                </label>
+              ))}
+            </div>
+            <div className="inline-add">
+              <input
+                type="text"
+                placeholder="Add a custom domain"
+                value={customDomain}
+                onChange={(event) => setCustomDomain(event.target.value)}
+              />
+              <button type="button" className="btn btn--secondary" onClick={addCustomDomain}>
+                Add
+              </button>
+            </div>
+            {selectedDomains.length > 0 && (
+              <div className="chip-row">
+                {selectedDomains.map((domain) => (
+                  <span className="chip" key={domain}>
+                    {domain}
+                  </span>
+                ))}
+              </div>
+            )}
+          </fieldset>
+
+          <button
+            type="submit"
+            className="btn btn--primary btn--block"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? 'Generating your curriculum...' : 'Generate my curriculum'}
           </button>
+
+          {mutation.isError && (
+            <div className="alert alert--error alert--after-action" role="alert">
+              Something went wrong: {(mutation.error as Error).message}
+            </div>
+          )}
         </div>
-        {selectedDomains.length > 0 && <p>Selected: {selectedDomains.join(', ')}</p>}
-      </fieldset>
-
-      <button type="submit" disabled={mutation.isPending}>
-        {mutation.isPending ? 'Generating your curriculum...' : 'Generate my curriculum'}
-      </button>
-
-      {mutation.isError && (
-        <p role="alert">Something went wrong: {(mutation.error as Error).message}</p>
-      )}
-    </form>
+      </form>
+    </div>
   );
 }
