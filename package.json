@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc -b",
     "test": "npm run test -w apps/server -- --coverage",
+    "test:e2e": "docker build -t pytho-trainer-sandbox docker/sandbox && npm run test:e2e -w apps/server",
     "prepare": "husky"
   },
   "devDependencies": {

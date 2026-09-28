@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -b",
     "start": "tsx src/index.ts",
-    "test": "jest"
+    "test": "jest",
+    "test:e2e": "tsx src/sandbox/runner.e2e.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
