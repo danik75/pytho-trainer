@@ -42,13 +42,15 @@ export interface InsertSubmissionInput {
   exitCode: number | null;
   timedOut: boolean;
   testResults: TestResult[];
+  aiEvaluation?: SubmissionEvaluation;
+  masteryScoreAfter?: number;
 }
 
 export function insertSubmission(db: Database.Database, input: InsertSubmissionInput): Submission {
   const id = randomUUID();
   db.prepare(
-    `INSERT INTO submissions (id, exercise_id, code, stdout, stderr, exit_code, timed_out, test_results)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO submissions (id, exercise_id, code, stdout, stderr, exit_code, timed_out, test_results, ai_evaluation, mastery_score_after)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.exerciseId,
@@ -58,6 +60,8 @@ export function insertSubmission(db: Database.Database, input: InsertSubmissionI
     input.exitCode,
     input.timedOut ? 1 : 0,
     JSON.stringify(input.testResults),
+    input.aiEvaluation ? JSON.stringify(input.aiEvaluation) : null,
+    input.masteryScoreAfter ?? null,
   );
   return mapRow(db.prepare('SELECT * FROM submissions WHERE id = ?').get(id) as SubmissionRow);
 }

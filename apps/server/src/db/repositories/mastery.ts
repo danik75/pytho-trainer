@@ -48,3 +48,31 @@ export function markMasteryInProgress(db: Database.Database, topicId: string): v
     "UPDATE mastery_records SET status = 'in_progress', last_updated_at = datetime('now') WHERE topic_id = ?",
   ).run(topicId);
 }
+
+export interface UpdateMasteryAfterEvaluationInput {
+  masteryScore: number;
+  attemptsCount: number;
+  consecutiveSuccesses: number;
+  weakSpots: string[];
+  status: MasteryRecord['status'];
+}
+
+export function updateMasteryAfterEvaluation(
+  db: Database.Database,
+  topicId: string,
+  input: UpdateMasteryAfterEvaluationInput,
+): MasteryRecord {
+  db.prepare(
+    `UPDATE mastery_records
+     SET mastery_score = ?, attempts_count = ?, consecutive_successes = ?, weak_spots = ?, status = ?, last_updated_at = datetime('now')
+     WHERE topic_id = ?`,
+  ).run(
+    input.masteryScore,
+    input.attemptsCount,
+    input.consecutiveSuccesses,
+    JSON.stringify(input.weakSpots),
+    input.status,
+    topicId,
+  );
+  return getMasteryRecordByTopic(db, topicId) as MasteryRecord;
+}

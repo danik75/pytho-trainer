@@ -1,4 +1,8 @@
-import { buildCurriculumUserMessage, buildExerciseUserMessage } from './promptBuilders';
+import {
+  buildCurriculumUserMessage,
+  buildExerciseUserMessage,
+  buildEvaluationUserMessage,
+} from './promptBuilders';
 
 describe('buildCurriculumUserMessage', () => {
   it('describes known catalog domains with their title and description', () => {
@@ -63,5 +67,51 @@ describe('buildExerciseUserMessage', () => {
     });
 
     expect(message).toContain('(none yet)');
+  });
+});
+
+describe('buildEvaluationUserMessage', () => {
+  it('summarizes test results, code, and program output', () => {
+    const message = buildEvaluationUserMessage({
+      exercisePrompt: 'Write add(a, b).',
+      code: 'def add(a, b):\n    return a + b\n',
+      stdout: 'debug line\n',
+      stderr: '',
+      testResults: [
+        { name: 'adds', passed: true },
+        { name: 'negative numbers', passed: false, details: 'Expected -1, got 1' },
+      ],
+    });
+
+    expect(message).toContain('Write add(a, b).');
+    expect(message).toContain('def add(a, b):');
+    expect(message).toContain('adds: passed');
+    expect(message).toContain('negative numbers: failed (Expected -1, got 1)');
+    expect(message).toContain('debug line');
+  });
+
+  it('falls back to "no details" for a failed test without a details field', () => {
+    const message = buildEvaluationUserMessage({
+      exercisePrompt: 'Write add(a, b).',
+      code: 'def add(a, b):\n    return a + b\n',
+      stdout: '',
+      stderr: '',
+      testResults: [{ name: 'adds', passed: false }],
+    });
+
+    expect(message).toContain('adds: failed (no details)');
+  });
+
+  it('notes empty stdout/stderr and no hidden tests', () => {
+    const message = buildEvaluationUserMessage({
+      exercisePrompt: 'Write add(a, b).',
+      code: 'def add(a, b):\n    return a + b\n',
+      stdout: '',
+      stderr: '',
+      testResults: [],
+    });
+
+    expect(message).toContain('(empty)');
+    expect(message).toContain('(no hidden tests)');
   });
 });

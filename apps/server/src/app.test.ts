@@ -4,7 +4,11 @@ jest.mock('execa', () => ({ execa: mockExeca }), { virtual: true });
 import { createTestDb } from './testUtils/createTestDb';
 import { createFakeAiClient } from './testUtils/fakeAiClient';
 import { buildApp } from './app';
-import type { CurriculumGeneration, ExerciseGeneration } from '@pytho-trainer/shared';
+import type {
+  CurriculumGeneration,
+  ExerciseGeneration,
+  SubmissionEvaluationGeneration,
+} from '@pytho-trainer/shared';
 
 const SANDBOX_CONFIG = { image: 'pytho-trainer-sandbox', timeoutMs: 5000, memoryMb: 128 };
 
@@ -55,6 +59,14 @@ const SAMPLE_EXERCISE: ExerciseGeneration = {
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds two numbers', functionName: 'add', args: [2, 3], expected: 5 }],
+};
+
+const SAMPLE_EVALUATION: SubmissionEvaluationGeneration = {
+  correct: true,
+  understandingNotes: 'Solid.',
+  feedback: 'Nice work!',
+  suggestedMasteryScore: 0.9,
+  identifiedWeakSpots: [],
 };
 
 describe('app routes', () => {
@@ -255,6 +267,8 @@ describe('app routes', () => {
         timedOut: false,
       });
 
+      aiClient.enqueue(SAMPLE_EVALUATION);
+      aiClient.enqueue(SAMPLE_EXERCISE);
       const submitResponse = await app.inject({
         method: 'POST',
         url: `/api/exercises/${exercise.id}/submit`,
@@ -262,8 +276,11 @@ describe('app routes', () => {
       });
 
       expect(submitResponse.statusCode).toBe(201);
-      const submission = submitResponse.json();
-      expect(submission.testResults).toEqual([{ name: 'adds two numbers', passed: true }]);
+      const result = submitResponse.json();
+      expect(result.submission.testResults).toEqual([{ name: 'adds two numbers', passed: true }]);
+      expect(result.decision).toBe('next_exercise');
+      expect(result.nextExercise.prompt).toBe(SAMPLE_EXERCISE.prompt);
+      expect(result.masteryRecord.attemptsCount).toBe(1);
     });
 
     it('POST /api/exercises/:exerciseId/submit returns 404 for an unknown exercise', async () => {

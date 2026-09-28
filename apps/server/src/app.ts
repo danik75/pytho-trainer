@@ -31,7 +31,7 @@ export function buildApp({ db, aiClient, sandboxConfig }: AppDependencies): Fast
   registerRoadmapRoutes(app, db);
   registerTopicRoutes(app, db, aiClient);
   registerSessionRoutes(app, db);
-  registerExerciseRoutes(app, db, sandboxConfig);
+  registerExerciseRoutes(app, db, aiClient, sandboxConfig);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

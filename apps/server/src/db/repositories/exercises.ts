@@ -69,3 +69,10 @@ export function getLatestExerciseBySession(
     .get(sessionId) as ExerciseRow | undefined;
   return row ? mapRow(row) : null;
 }
+
+export function listExercisesBySession(db: Database.Database, sessionId: string): Exercise[] {
+  const rows = db
+    .prepare('SELECT * FROM exercises WHERE session_id = ? ORDER BY created_at ASC')
+    .all(sessionId) as ExerciseRow[];
+  return rows.map(mapRow);
+}

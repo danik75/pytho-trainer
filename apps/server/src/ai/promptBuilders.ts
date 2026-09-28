@@ -1,4 +1,4 @@
-import { DOMAIN_CATALOG, type Difficulty } from '@pytho-trainer/shared';
+import { DOMAIN_CATALOG, type Difficulty, type TestResult } from '@pytho-trainer/shared';
 
 export interface CurriculumGenerationInput {
   goals: string;
@@ -66,4 +66,46 @@ Exercises already given for this topic (do not repeat): ${
   }
 
 Generate the next exercise now.`;
+}
+
+export interface EvaluationInput {
+  exercisePrompt: string;
+  code: string;
+  stdout: string;
+  stderr: string;
+  testResults: TestResult[];
+}
+
+export const EVALUATION_SYSTEM_PROMPT = `You are an expert Python instructor evaluating a student's code submission for one exercise.
+
+Rules:
+- The hidden test results are already computed deterministically and are ground truth for correctness - do not re-judge whether they passed, only interpret what they reveal about the student's understanding.
+- Assess whether the code demonstrates real understanding of the underlying concept, not just accidental correctness (e.g. hardcoding the expected outputs).
+- suggestedMasteryScore is an absolute score from 0 to 1 reflecting the student's overall demonstrated mastery of this topic after this submission (not just a grade for this one exercise) - weigh correctness heavily, but also code quality and understanding shown.
+- identifiedWeakSpots should name specific concepts the student appears to be struggling with (an empty array if none stand out).
+- feedback is shown directly to the student: keep it concise, specific, and encouraging even when the submission is wrong.`;
+
+export function buildEvaluationUserMessage(input: EvaluationInput): string {
+  const testSummary = input.testResults
+    .map(
+      (test) =>
+        `- ${test.name}: ${test.passed ? 'passed' : `failed (${test.details ?? 'no details'})`}`,
+    )
+    .join('\n');
+
+  return `Exercise prompt:
+${input.exercisePrompt}
+
+Submitted code:
+\`\`\`python
+${input.code}
+\`\`\`
+
+Hidden test results (ground truth, already computed):
+${testSummary || '(no hidden tests)'}
+
+Program stdout: ${input.stdout || '(empty)'}
+Program stderr: ${input.stderr || '(empty)'}
+
+Evaluate this submission now.`;
 }

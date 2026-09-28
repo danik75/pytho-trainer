@@ -71,3 +71,34 @@ export function getRoadmapEntryByTopic(
 export function markRoadmapEntryInProgress(db: Database.Database, topicId: string): void {
   db.prepare("UPDATE roadmap_entries SET status = 'in_progress' WHERE topic_id = ?").run(topicId);
 }
+
+export function markRoadmapEntryMastered(db: Database.Database, topicId: string): void {
+  db.prepare(
+    "UPDATE roadmap_entries SET status = 'mastered', mastered_at = datetime('now') WHERE topic_id = ?",
+  ).run(topicId);
+}
+
+/**
+ * Unlocks the next entry in the curriculum's single flat sequence, if it's
+ * still locked. Because persistGeneratedCurriculum already lays out
+ * sequence_index as Foundations-then-domain-tracks-in-order, "next by
+ * sequence_index" is sufficient to enforce Foundations-first and
+ * sequential-domain-tracks gating without any track-aware branching here.
+ */
+export function unlockNextRoadmapEntry(
+  db: Database.Database,
+  curriculumId: string,
+  currentSequenceIndex: number,
+): void {
+  const next = db
+    .prepare(
+      'SELECT * FROM roadmap_entries WHERE curriculum_id = ? AND sequence_index > ? ORDER BY sequence_index ASC LIMIT 1',
+    )
+    .get(curriculumId, currentSequenceIndex) as RoadmapEntryRow | undefined;
+
+  if (next && next.status === 'locked') {
+    db.prepare(
+      "UPDATE roadmap_entries SET status = 'available', unlocked_at = datetime('now') WHERE id = ?",
+    ).run(next.id);
+  }
+}
