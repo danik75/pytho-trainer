@@ -4,6 +4,7 @@ import {
   buildEvaluationUserMessage,
   buildTheoryUserMessage,
   buildExamGradingUserMessage,
+  buildOverviewUserMessage,
 } from './promptBuilders';
 
 describe('buildCurriculumUserMessage', () => {
@@ -175,5 +176,68 @@ describe('buildExamGradingUserMessage', () => {
     expect(message).toContain('short_answer');
     expect(message).toContain('(no answer)');
     expect(message).toContain('Accept any description of a stopping condition.');
+  });
+});
+
+describe('buildOverviewUserMessage', () => {
+  it('includes topic progress, difficulties, struggling topics, and next steps', () => {
+    const message = buildOverviewUserMessage({
+      curriculumTitle: 'Python Basics',
+      topics: [
+        {
+          topicId: 't1',
+          title: 'Variables',
+          trackTitle: 'Foundations',
+          masteryScore: 0.9,
+          level: 'mastered',
+          attemptsCount: 2,
+          status: 'mastered',
+        },
+      ],
+      difficulties: [{ weakSpot: 'off-by-one errors', occurrences: 3 }],
+      strugglingTopics: [
+        {
+          topicId: 't2',
+          title: 'Loops',
+          trackTitle: 'Foundations',
+          masteryScore: 0.2,
+          level: 'developing',
+          attemptsCount: 15,
+          status: 'struggling',
+        },
+      ],
+      nextSteps: [
+        {
+          topicId: 't3',
+          title: 'Functions',
+          trackTitle: 'Foundations',
+          masteryScore: 0,
+          level: 'not_started',
+          attemptsCount: 0,
+          status: 'not_started',
+        },
+      ],
+    });
+
+    expect(message).toContain('Python Basics');
+    expect(message).toContain('Variables (Foundations): mastered, 90% mastery, 2 attempt(s)');
+    expect(message).toContain('off-by-one errors (seen 3x)');
+    expect(message).toContain('Loops');
+    expect(message).toContain('Functions (Foundations)');
+  });
+
+  it('notes empty topics, difficulties, struggling topics, and next steps', () => {
+    const message = buildOverviewUserMessage({
+      curriculumTitle: 'Python Basics',
+      topics: [],
+      difficulties: [],
+      strugglingTopics: [],
+      nextSteps: [],
+    });
+
+    expect(message).toContain('(no topics yet)');
+    expect(message).toContain('(none identified)');
+    expect(message).toContain('(none)');
+    expect(message).toContain('(none - curriculum complete or nothing unlocked yet)');
   });
 });

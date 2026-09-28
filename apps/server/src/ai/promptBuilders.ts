@@ -1,6 +1,7 @@
 import {
   DOMAIN_CATALOG,
   type Difficulty,
+  type LearningOverviewTopicSummary,
   type QuestionType,
   type TestResult,
 } from '@pytho-trainer/shared';
@@ -181,4 +182,57 @@ Grading notes: ${q.gradingNotes}`;
   });
 
   return `${questionBlocks.join('\n\n')}\n\nGrade this exam attempt now.`;
+}
+
+export interface OverviewGenerationInput {
+  curriculumTitle: string;
+  topics: LearningOverviewTopicSummary[];
+  difficulties: Array<{ weakSpot: string; occurrences: number }>;
+  strugglingTopics: LearningOverviewTopicSummary[];
+  nextSteps: LearningOverviewTopicSummary[];
+}
+
+export const OVERVIEW_SYSTEM_PROMPT = `You are a supportive Python tutor writing a short progress summary for a student, based entirely on data the system already computed - you are not inventing any facts, topics, or scores, only synthesizing what's given into clear, encouraging prose.
+
+Rules:
+- narrativeMd should be 2-4 short paragraphs in markdown: what the student has mastered so far, where they're currently struggling (if anywhere) and why, and what to focus on next.
+- Be specific - reference topic titles and weak spots by name rather than speaking in generalities.
+- Keep an encouraging, coach-like tone even when discussing struggles.
+- Do not invent scores, topics, or facts beyond what is given below.`;
+
+export function buildOverviewUserMessage(input: OverviewGenerationInput): string {
+  const topicLines = input.topics
+    .map(
+      (t) =>
+        `- ${t.title} (${t.trackTitle}): ${t.level}, ${Math.round(t.masteryScore * 100)}% mastery, ${t.attemptsCount} attempt(s)`,
+    )
+    .join('\n');
+  const difficultyLines =
+    input.difficulties.length > 0
+      ? input.difficulties.map((d) => `- ${d.weakSpot} (seen ${d.occurrences}x)`).join('\n')
+      : '(none identified)';
+  const strugglingLines =
+    input.strugglingTopics.length > 0
+      ? input.strugglingTopics.map((t) => `- ${t.title}`).join('\n')
+      : '(none)';
+  const nextStepLines =
+    input.nextSteps.length > 0
+      ? input.nextSteps.map((t) => `- ${t.title} (${t.trackTitle})`).join('\n')
+      : '(none - curriculum complete or nothing unlocked yet)';
+
+  return `Curriculum: ${input.curriculumTitle}
+
+Topic progress:
+${topicLines || '(no topics yet)'}
+
+Recurring difficulties (weak spots ranked by frequency):
+${difficultyLines}
+
+Topics currently flagged struggling:
+${strugglingLines}
+
+Suggested next steps:
+${nextStepLines}
+
+Write the progress summary now.`;
 }

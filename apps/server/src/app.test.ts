@@ -8,6 +8,7 @@ import type {
   CurriculumGeneration,
   ExamGradingGeneration,
   ExerciseGeneration,
+  OverviewNarrativeGeneration,
   SubmissionEvaluationGeneration,
   TheoryGeneration,
 } from '@pytho-trainer/shared';
@@ -89,6 +90,10 @@ const SAMPLE_EXAM_GRADING: ExamGradingGeneration = {
   overallFeedback: 'Great job!',
   perQuestionFeedback: {},
   suggestedMasteryScore: 0.85,
+};
+
+const SAMPLE_NARRATIVE: OverviewNarrativeGeneration = {
+  narrativeMd: '# Great progress so far!',
 };
 
 describe('app routes', () => {
@@ -384,6 +389,44 @@ describe('app routes', () => {
         payload: { answers: {} },
       });
       expect(response.statusCode).toBe(409);
+    });
+  });
+
+  describe('learning overview', () => {
+    it('GET /api/overview returns 404 before any curriculum exists', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({ method: 'GET', url: '/api/overview' });
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('POST /api/overview/refresh returns 409 before any curriculum exists', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({ method: 'POST', url: '/api/overview/refresh' });
+      expect(response.statusCode).toBe(409);
+    });
+
+    it('GET /api/overview reflects current topics with a null narrative before refresh', async () => {
+      const { app } = buildTestApp(SAMPLE_CURRICULUM);
+      await app.inject({ method: 'POST', url: '/api/curricula' });
+
+      const response = await app.inject({ method: 'GET', url: '/api/overview' });
+      expect(response.statusCode).toBe(200);
+      const overview = response.json();
+      expect(overview.topics).toHaveLength(2);
+      expect(overview.narrativeMd).toBeNull();
+    });
+
+    it('POST /api/overview/refresh generates a narrative, then GET /api/overview reflects it', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      await app.inject({ method: 'POST', url: '/api/curricula' });
+
+      aiClient.enqueue(SAMPLE_NARRATIVE);
+      const refreshResponse = await app.inject({ method: 'POST', url: '/api/overview/refresh' });
+      expect(refreshResponse.statusCode).toBe(200);
+      expect(refreshResponse.json().narrativeMd).toBe(SAMPLE_NARRATIVE.narrativeMd);
+
+      const overviewResponse = await app.inject({ method: 'GET', url: '/api/overview' });
+      expect(overviewResponse.json().narrativeMd).toBe(SAMPLE_NARRATIVE.narrativeMd);
     });
   });
 });
