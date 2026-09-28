@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type Database from 'better-sqlite3';
 import { ZodError } from 'zod';
 import { registerHealthRoutes } from './routes/health';
@@ -37,7 +37,7 @@ export function buildApp({ db, aiClient, sandboxConfig }: AppDependencies): Fast
   registerTeachRoutes(app, db, aiClient);
   registerOverviewRoutes(app, db, aiClient);
 
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler<FastifyError>((error, _request, reply) => {
     if (error instanceof ZodError) {
       return reply
         .status(400)
@@ -53,6 +53,14 @@ export function buildApp({ db, aiClient, sandboxConfig }: AppDependencies): Fast
       return reply
         .status(502)
         .send({ error: { code: 'ai_generation_error', message: error.message } });
+    }
+    // Fastify's own errors (malformed body, unsupported media type, etc.)
+    // carry a statusCode - respect it instead of masking a client mistake as
+    // a 500, but still fall through to 500 for anything without one.
+    if (typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 500) {
+      return reply
+        .status(error.statusCode)
+        .send({ error: { code: 'bad_request', message: error.message } });
     }
     app.log.error(error);
     return reply

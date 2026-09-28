@@ -1,4 +1,17 @@
-import type { DomainCatalogEntry, RoadmapView, User } from '@pytho-trainer/shared';
+import type {
+  DomainCatalogEntry,
+  Exercise,
+  ExamAttempt,
+  LearningOverview,
+  MasteryRecord,
+  QuestionType,
+  RoadmapView,
+  SessionDecision,
+  StudySession,
+  Submission,
+  Topic,
+  User,
+} from '@pytho-trainer/shared';
 
 export class ApiError extends Error {
   status: number;
@@ -11,9 +24,13 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Only declare a JSON content-type when there's actually a body - Fastify
+  // rejects an empty body when Content-Type: application/json is set, which
+  // several endpoints here hit (e.g. bodyless POSTs like createCurriculum).
+  const headers = init?.body ? { 'Content-Type': 'application/json' } : undefined;
   const response = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: { ...headers, ...init?.headers },
   });
 
   if (!response.ok) {
@@ -54,4 +71,117 @@ export function createCurriculum(): Promise<{ curriculumId: string }> {
 
 export function getRoadmap(): Promise<RoadmapView> {
   return request<RoadmapView>('/api/roadmap');
+}
+
+export interface TopicDetail {
+  topic: Topic;
+  mastery: MasteryRecord | null;
+}
+
+export function getTopic(topicId: string): Promise<TopicDetail> {
+  return request<TopicDetail>(`/api/topics/${topicId}`);
+}
+
+export interface StartTopicResult {
+  session: StudySession;
+  exercise: Exercise;
+}
+
+export function startTopic(topicId: string): Promise<StartTopicResult> {
+  return request<StartTopicResult>(`/api/topics/${topicId}/start`, { method: 'POST' });
+}
+
+export function getSession(sessionId: string): Promise<StudySession> {
+  return request<StudySession>(`/api/sessions/${sessionId}`);
+}
+
+export function getCurrentExercise(sessionId: string): Promise<Exercise> {
+  return request<Exercise>(`/api/sessions/${sessionId}/exercises/current`);
+}
+
+export interface TheorySessionResult {
+  session: StudySession;
+  examQuestions: ClientExamQuestion[];
+}
+
+export interface SubmitResult<TResult> {
+  masteryRecord: MasteryRecord;
+  decision: SessionDecision;
+  nextExercise: Exercise | null;
+  theorySession: TheorySessionResult | null;
+  result: TResult;
+}
+
+interface SubmitExerciseApiResponse {
+  submission: Submission;
+  masteryRecord: MasteryRecord;
+  decision: SessionDecision;
+  nextExercise: Exercise | null;
+  theorySession: TheorySessionResult | null;
+}
+
+export async function submitExerciseCode(
+  exerciseId: string,
+  code: string,
+): Promise<SubmitResult<Submission>> {
+  const response = await request<SubmitExerciseApiResponse>(`/api/exercises/${exerciseId}/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+  const { submission, ...rest } = response;
+  return { ...rest, result: submission };
+}
+
+// The answer key (correctAnswer/gradingNotes) is never sent to the client.
+export interface ClientExamQuestion {
+  id: string;
+  sessionId: string;
+  questionMd: string;
+  questionType: QuestionType;
+  choices: string[] | null;
+}
+
+export function getExamQuestions(sessionId: string): Promise<ClientExamQuestion[]> {
+  return request<ClientExamQuestion[]>(`/api/sessions/${sessionId}/exam/questions`);
+}
+
+interface SubmitExamApiResponse {
+  examAttempt: ExamAttempt;
+  masteryRecord: MasteryRecord;
+  decision: SessionDecision;
+  nextExercise: Exercise | null;
+  theorySession: TheorySessionResult | null;
+}
+
+export async function submitExamAnswers(
+  sessionId: string,
+  answers: Record<string, string>,
+): Promise<SubmitResult<ExamAttempt>> {
+  const response = await request<SubmitExamApiResponse>(`/api/sessions/${sessionId}/exam/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ answers }),
+  });
+  const { examAttempt, ...rest } = response;
+  return { ...rest, result: examAttempt };
+}
+
+export interface TeachOnDemandResult {
+  topic: Topic;
+  session: StudySession;
+  examQuestions: ClientExamQuestion[];
+}
+
+export function teachOnDemand(topic: string): Promise<TeachOnDemandResult> {
+  return request<TeachOnDemandResult>('/api/teach', {
+    method: 'POST',
+    body: JSON.stringify({ topic }),
+  });
+}
+
+export function getOverview(): Promise<LearningOverview> {
+  return request<LearningOverview>('/api/overview');
+}
+
+export function refreshOverview(): Promise<LearningOverview> {
+  return request<LearningOverview>('/api/overview/refresh', { method: 'POST' });
 }

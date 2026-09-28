@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { getRoadmap, ApiError } from '../api/client';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
+import { getRoadmap, startTopic, ApiError } from '../api/client';
+import { TeachMeRequestBox } from '../components/TeachMeRequestBox';
 
 const STATUS_LABELS: Record<string, string> = {
   locked: 'Locked',
@@ -8,6 +9,22 @@ const STATUS_LABELS: Record<string, string> = {
   in_progress: 'In progress',
   mastered: 'Mastered',
 };
+
+function StartTopicButton({ topicId, roadmapStatus }: { topicId: string; roadmapStatus: string }) {
+  const navigate = useNavigate();
+  const mutation = useMutation({
+    mutationFn: () => startTopic(topicId),
+    onSuccess: (result) => navigate(`/sessions/${result.session.id}`),
+  });
+
+  if (roadmapStatus !== 'available' && roadmapStatus !== 'in_progress') return null;
+
+  return (
+    <button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+      {mutation.isPending ? 'Starting...' : roadmapStatus === 'available' ? 'Start' : 'Continue'}
+    </button>
+  );
+}
 
 export function RoadmapPage() {
   const { data, error, isLoading } = useQuery({
@@ -38,6 +55,10 @@ export function RoadmapPage() {
     <div>
       <h1>{data.title}</h1>
       <p>{data.summary}</p>
+      <p>
+        <Link to="/overview">View learning overview</Link>
+      </p>
+
       {data.tracks.map((track) => (
         <section key={track.trackId}>
           <h2>
@@ -49,12 +70,17 @@ export function RoadmapPage() {
             {track.topics.map((topic) => (
               <li key={topic.topicId}>
                 <strong>{topic.title}</strong> - {STATUS_LABELS[topic.roadmapStatus]} (mastery:{' '}
-                {Math.round(topic.masteryScore * 100)}%)
+                {Math.round(topic.masteryScore * 100)}%){' '}
+                <StartTopicButton topicId={topic.topicId} roadmapStatus={topic.roadmapStatus} />
               </li>
             ))}
           </ul>
         </section>
       ))}
+
+      <section>
+        <TeachMeRequestBox />
+      </section>
     </div>
   );
 }

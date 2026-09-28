@@ -195,6 +195,22 @@ describe('app routes', () => {
     expect(response.json().error.code).toBe('internal_error');
   });
 
+  it('surfaces a Fastify body-parsing error as its own status code, not a 500', async () => {
+    const { app } = buildTestApp();
+    // Content-Type: application/json with no body is rejected by Fastify's
+    // own JSON parser before our route handler ever runs - the real browser
+    // client hit this for years by always setting this header (fixed in
+    // api/client.ts), so this guards the server-side fallback too.
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/curricula',
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('bad_request');
+  });
+
   async function setUpCurriculumAndTopic(app: ReturnType<typeof buildApp>) {
     await app.inject({ method: 'POST', url: '/api/curricula' });
     const roadmap = (await app.inject({ method: 'GET', url: '/api/roadmap' })).json();
