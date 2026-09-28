@@ -163,6 +163,31 @@ export interface ExamFeedback {
   perQuestion: Record<string, string>;
 }
 
+export interface RoadmapTopicView {
+  topicId: string;
+  title: string;
+  description: string;
+  difficulty: Difficulty;
+  roadmapStatus: RoadmapStatus;
+  masteryScore: number;
+  masteryStatus: MasteryStatus;
+}
+
+export interface RoadmapTrackView {
+  trackId: string;
+  kind: TrackKind;
+  title: string;
+  description: string;
+  topics: RoadmapTopicView[];
+}
+
+export interface RoadmapView {
+  curriculumId: string;
+  title: string;
+  summary: string;
+  tracks: RoadmapTrackView[];
+}
+
 export interface LearningOverviewTopicSummary {
   topicId: string;
   title: string;
