@@ -1,5 +1,6 @@
 import type { ExamGradingGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
+import { HAIKU_MODEL } from './client';
 import { gradeExam } from './examGrading';
 
 const SAMPLE: ExamGradingGeneration = {
@@ -29,5 +30,6 @@ describe('gradeExam', () => {
     expect(result).toEqual(SAMPLE);
     expect(aiClient.requests[0]?.toolName).toBe('grade_exam');
     expect(aiClient.requests[0]?.messages[0]?.content).toContain('base case');
+    expect(aiClient.requests[0]?.model).toBe(HAIKU_MODEL);
   });
 });

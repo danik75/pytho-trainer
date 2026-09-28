@@ -10,6 +10,7 @@ export interface StructuredGenerationRequest<T> {
   schema: z.ZodType<T>;
   jsonSchema: Record<string, unknown>;
   maxTokens?: number;
+  model?: string;
 }
 
 /**
@@ -31,6 +32,7 @@ export async function generateStructured<T>(
       toolDescription: request.toolDescription,
       inputSchema: request.jsonSchema,
       maxTokens: request.maxTokens,
+      model: request.model,
     });
 
   const firstOutput = await attempt(request.userMessage);

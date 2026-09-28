@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { examGradingSchema, type ExamGradingGeneration } from '@pytho-trainer/shared';
-import type { AiClient } from './client';
+import { HAIKU_MODEL, type AiClient } from './client';
 import { generateStructured } from './generateStructured';
 import {
   EXAM_GRADING_SYSTEM_PROMPT,
@@ -25,5 +25,6 @@ export async function gradeExam(
     schema: examGradingSchema,
     jsonSchema: JSON_SCHEMA as Record<string, unknown>,
     maxTokens: 2048,
+    model: HAIKU_MODEL,
   });
 }
