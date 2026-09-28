@@ -2,7 +2,7 @@ import { createTestDb } from '../../testUtils/createTestDb';
 import { ensureLocalUser, LOCAL_USER_ID } from './users';
 import { insertCurriculum } from './curricula';
 import { insertTrack, listTracksByCurriculum } from './tracks';
-import { insertTopic, listTopicsByTrack, getTopic } from './topics';
+import { insertTopic, listTopicsByTrack, listRoadmapTopicsByTrack, getTopic } from './topics';
 
 describe('tracks and topics repositories', () => {
   it('inserts and lists tracks in track_order', () => {
@@ -69,5 +69,47 @@ describe('tracks and topics repositories', () => {
     expect(getTopic(db, topic.id)?.title).toBe('Variables');
     expect(listTopicsByTrack(db, track.id)).toHaveLength(1);
     expect(getTopic(db, 'missing-id')).toBeNull();
+  });
+
+  it('excludes on_demand topics from listRoadmapTopicsByTrack but not listTopicsByTrack', () => {
+    const db = createTestDb();
+    ensureLocalUser(db);
+    const curriculum = insertCurriculum(db, {
+      userId: LOCAL_USER_ID,
+      title: 'C',
+      summary: 'S',
+      rawAiResponse: '{}',
+    });
+    const track = insertTrack(db, {
+      curriculumId: curriculum.id,
+      kind: 'foundations',
+      slug: 'foundations',
+      title: 'Foundations',
+      description: 'D',
+      trackOrder: 0,
+    });
+
+    insertTopic(db, {
+      trackId: track.id,
+      orderIndex: 0,
+      title: 'Variables',
+      description: 'Basics',
+      learningObjectives: ['Declare a variable'],
+      difficulty: 'intro',
+    });
+    insertTopic(db, {
+      trackId: track.id,
+      origin: 'on_demand',
+      orderIndex: 0,
+      title: 'Decorators (on demand)',
+      description: 'Ad hoc topic',
+      learningObjectives: [],
+      difficulty: 'core',
+    });
+
+    expect(listTopicsByTrack(db, track.id)).toHaveLength(2);
+    const roadmapTopics = listRoadmapTopicsByTrack(db, track.id);
+    expect(roadmapTopics).toHaveLength(1);
+    expect(roadmapTopics[0]?.title).toBe('Variables');
   });
 });

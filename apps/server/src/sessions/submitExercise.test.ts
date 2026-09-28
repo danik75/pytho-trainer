@@ -1,7 +1,11 @@
 const mockExeca = jest.fn();
 jest.mock('execa', () => ({ execa: mockExeca }), { virtual: true });
 
-import type { ExerciseGeneration, SubmissionEvaluationGeneration } from '@pytho-trainer/shared';
+import type {
+  ExerciseGeneration,
+  SubmissionEvaluationGeneration,
+  TheoryGeneration,
+} from '@pytho-trainer/shared';
 import { createTestDb } from '../testUtils/createTestDb';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
 import { ensureLocalUser, LOCAL_USER_ID } from '../db/repositories/users';
@@ -38,6 +42,19 @@ const NEXT_EXERCISE: ExerciseGeneration = {
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds2', functionName: 'add', args: [1, 1], expected: 2 }],
+};
+
+const THEORY_SESSION: TheoryGeneration = {
+  explanationMd: '# Functions, revisited',
+  examQuestions: [
+    {
+      questionMd: 'What does `return` do?',
+      questionType: 'short_answer',
+      choices: null,
+      correctAnswer: 'Sends a value back to the caller.',
+      gradingNotes: 'Accept any description of sending a value back to the caller.',
+    },
+  ],
 };
 
 function setupCurriculum(db: ReturnType<typeof createTestDb>) {
@@ -205,11 +222,15 @@ describe('submitExercise', () => {
       exitCode: 0,
       timedOut: false,
     });
+    // suggestedMasteryScore stays above the "bad first attempt" theory-session
+    // trigger (0.3) and identifiedWeakSpots stays empty so no repeated-weak-spot
+    // trigger fires either - this test is specifically about the max-attempts
+    // safety valve, not the theory-session insertion path (covered elsewhere).
     const wrongEvaluation: SubmissionEvaluationGeneration = {
       correct: false,
       understandingNotes: 'Not quite.',
       feedback: 'Try again.',
-      suggestedMasteryScore: 0.1,
+      suggestedMasteryScore: 0.5,
       identifiedWeakSpots: [],
     };
 
@@ -229,6 +250,42 @@ describe('submitExercise', () => {
     expect(lastResult?.nextExercise).toBeNull();
     expect(getMasteryRecordByTopic(db, topic.id)?.status).toBe('struggling');
     expect(getRoadmapEntryByTopic(db, topic.id)?.status).toBe('in_progress');
+  });
+
+  it('inserts a theory session (in a new session) when the mastery engine decides to', async () => {
+    const db = createTestDb();
+    const { topic, session, exercise } = setupCurriculum(db);
+    const failingPayload = {
+      stdout: '',
+      stderr: '',
+      testResults: [{ name: 'adds', passed: false, details: 'wrong' }],
+    };
+    mockExeca.mockResolvedValue({
+      stdout: `##RESULTS##${JSON.stringify(failingPayload)}`,
+      stderr: '',
+      exitCode: 0,
+      timedOut: false,
+    });
+    const badEvaluation: SubmissionEvaluationGeneration = {
+      correct: false,
+      understandingNotes: 'No grasp of the concept yet.',
+      feedback: 'Let’s go over this concept again.',
+      suggestedMasteryScore: 0.1,
+      identifiedWeakSpots: ['what functions return'],
+    };
+    const aiClient = createFakeAiClient();
+    aiClient.enqueue(badEvaluation);
+    aiClient.enqueue(THEORY_SESSION);
+
+    const result = await submitExercise(db, aiClient, SANDBOX_CONFIG, exercise.id, 'wrong');
+
+    expect(result.decision).toBe('insert_theory_session');
+    expect(result.nextExercise).toBeNull();
+    expect(result.theorySession?.session.sessionType).toBe('theory');
+    expect(result.theorySession?.session.topicId).toBe(topic.id);
+    expect(result.theorySession?.session.id).not.toBe(session.id);
+    expect(result.theorySession?.examQuestions).toHaveLength(1);
+    expect(getMasteryRecordByTopic(db, topic.id)?.status).toBe('in_progress');
   });
 
   it('advances the topic and unlocks the next roadmap entry once mastered', async () => {

@@ -1,4 +1,4 @@
-import type { MasteryStatus } from '@pytho-trainer/shared';
+import type { MasteryStatus, SessionDecision } from '@pytho-trainer/shared';
 
 export interface MasteryState {
   masteryScore: number;
@@ -13,7 +13,7 @@ export interface EvaluationSignal {
   identifiedWeakSpots: string[];
 }
 
-export type SessionDecision = 'next_exercise' | 'advance_topic' | 'flag_struggling';
+export type { SessionDecision };
 
 export interface DecisionResult {
   nextState: MasteryState;
@@ -26,6 +26,7 @@ export const MASTERY_THRESHOLD = {
   minConsecutiveSuccesses: 2,
   minAttempts: 2,
   maxAttemptsBeforeStruggling: 15,
+  badFirstAttemptScore: 0.3,
 };
 
 /**
@@ -67,5 +68,21 @@ export function decideNextStep(
   if (attemptsCount >= MASTERY_THRESHOLD.maxAttemptsBeforeStruggling) {
     return { nextState, decision: 'flag_struggling', status: 'struggling' };
   }
+
+  // A theory session is warranted when the same conceptual gap persists
+  // across attempts, or the very first attempt shows no grounding at all -
+  // in both cases another exercise alone is unlikely to help.
+  const repeatedWeakSpot =
+    !evaluation.correct &&
+    current.weakSpots.some((spot) => evaluation.identifiedWeakSpots.includes(spot));
+  const badFirstAttempt =
+    current.attemptsCount === 0 &&
+    !evaluation.correct &&
+    evaluation.suggestedMasteryScore < MASTERY_THRESHOLD.badFirstAttemptScore;
+
+  if (repeatedWeakSpot || badFirstAttempt) {
+    return { nextState, decision: 'insert_theory_session', status: 'in_progress' };
+  }
+
   return { nextState, decision: 'next_exercise', status: 'in_progress' };
 }

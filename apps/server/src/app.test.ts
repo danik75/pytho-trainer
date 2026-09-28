@@ -6,8 +6,10 @@ import { createFakeAiClient } from './testUtils/fakeAiClient';
 import { buildApp } from './app';
 import type {
   CurriculumGeneration,
+  ExamGradingGeneration,
   ExerciseGeneration,
   SubmissionEvaluationGeneration,
+  TheoryGeneration,
 } from '@pytho-trainer/shared';
 
 const SANDBOX_CONFIG = { image: 'pytho-trainer-sandbox', timeoutMs: 5000, memoryMb: 128 };
@@ -67,6 +69,26 @@ const SAMPLE_EVALUATION: SubmissionEvaluationGeneration = {
   feedback: 'Nice work!',
   suggestedMasteryScore: 0.9,
   identifiedWeakSpots: [],
+};
+
+const SAMPLE_THEORY: TheoryGeneration = {
+  explanationMd: '# Functions\n\nA function is a reusable block of code.',
+  examQuestions: [
+    {
+      questionMd: 'What keyword defines a function?',
+      questionType: 'multiple_choice',
+      choices: ['def', 'func', 'function'],
+      correctAnswer: 'def',
+      gradingNotes: '',
+    },
+  ],
+};
+
+const SAMPLE_EXAM_GRADING: ExamGradingGeneration = {
+  score: 0.9,
+  overallFeedback: 'Great job!',
+  perQuestionFeedback: {},
+  suggestedMasteryScore: 0.85,
 };
 
 describe('app routes', () => {
@@ -168,15 +190,15 @@ describe('app routes', () => {
     expect(response.json().error.code).toBe('internal_error');
   });
 
-  describe('topics, sessions, and exercise submission', () => {
-    async function setUpCurriculumAndTopic(app: ReturnType<typeof buildApp>) {
-      await app.inject({ method: 'POST', url: '/api/curricula' });
-      const roadmap = (await app.inject({ method: 'GET', url: '/api/roadmap' })).json();
-      const availableTopicId = roadmap.tracks[0].topics[0].topicId as string;
-      const lockedTopicId = roadmap.tracks[1].topics[0].topicId as string;
-      return { availableTopicId, lockedTopicId };
-    }
+  async function setUpCurriculumAndTopic(app: ReturnType<typeof buildApp>) {
+    await app.inject({ method: 'POST', url: '/api/curricula' });
+    const roadmap = (await app.inject({ method: 'GET', url: '/api/roadmap' })).json();
+    const availableTopicId = roadmap.tracks[0].topics[0].topicId as string;
+    const lockedTopicId = roadmap.tracks[1].topics[0].topicId as string;
+    return { availableTopicId, lockedTopicId };
+  }
 
+  describe('topics, sessions, and exercise submission', () => {
     it('GET /api/topics/:topicId returns 404 for an unknown topic', async () => {
       const { app } = buildTestApp();
       const response = await app.inject({ method: 'GET', url: '/api/topics/missing' });
@@ -291,6 +313,77 @@ describe('app routes', () => {
         payload: { code: 'pass' },
       });
       expect(response.statusCode).toBe(404);
+    });
+  });
+
+  describe('theory sessions, exams, and on-demand teaching', () => {
+    it('POST /api/teach returns 409 without an active curriculum', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/teach',
+        payload: { topic: 'Decorators' },
+      });
+      expect(response.statusCode).toBe(409);
+    });
+
+    it('POST /api/teach creates an on-demand theory session, and its exam can be fetched and graded', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      await app.inject({ method: 'POST', url: '/api/curricula' });
+
+      aiClient.enqueue(SAMPLE_THEORY);
+      const teachResponse = await app.inject({
+        method: 'POST',
+        url: '/api/teach',
+        payload: { topic: 'Decorators' },
+      });
+      expect(teachResponse.statusCode).toBe(201);
+      const taught = teachResponse.json();
+      expect(taught.topic.origin).toBe('on_demand');
+      expect(taught.session.sessionType).toBe('theory');
+
+      const questionsResponse = await app.inject({
+        method: 'GET',
+        url: `/api/sessions/${taught.session.id}/exam/questions`,
+      });
+      expect(questionsResponse.statusCode).toBe(200);
+      const questions = questionsResponse.json();
+      expect(questions).toHaveLength(1);
+      expect(questions[0].correctAnswer).toBeUndefined();
+      expect(questions[0].gradingNotes).toBeUndefined();
+
+      // Passing (score 0.9) but only the first attempt, so the mastery engine
+      // asks for another exercise next rather than mastering immediately.
+      aiClient.enqueue(SAMPLE_EXAM_GRADING);
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const submitResponse = await app.inject({
+        method: 'POST',
+        url: `/api/sessions/${taught.session.id}/exam/submit`,
+        payload: { answers: { [questions[0].id]: 'def' } },
+      });
+      expect(submitResponse.statusCode).toBe(201);
+      const result = submitResponse.json();
+      expect(result.examAttempt.score).toBe(0.9);
+      expect(result.decision).toBe('next_exercise');
+      expect(result.nextExercise.prompt).toBe(SAMPLE_EXERCISE.prompt);
+    });
+
+    it('POST /api/sessions/:sessionId/exam/submit returns 409 for a non-theory session', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const startResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/start`,
+      });
+      const { session } = startResponse.json();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/sessions/${session.id}/exam/submit`,
+        payload: { answers: {} },
+      });
+      expect(response.statusCode).toBe(409);
     });
   });
 });

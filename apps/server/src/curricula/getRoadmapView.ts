@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3';
 import type { RoadmapTopicView, RoadmapTrackView, RoadmapView } from '@pytho-trainer/shared';
 import { getActiveCurriculum } from '../db/repositories/curricula';
 import { listTracksByCurriculum } from '../db/repositories/tracks';
-import { listTopicsByTrack } from '../db/repositories/topics';
+import { listRoadmapTopicsByTrack } from '../db/repositories/topics';
 import { getRoadmapEntryByTopic } from '../db/repositories/roadmap';
 import { getMasteryRecordByTopic } from '../db/repositories/mastery';
 
@@ -15,7 +15,7 @@ export function getRoadmapView(db: Database.Database, userId: string): RoadmapVi
     kind: track.kind,
     title: track.title,
     description: track.description,
-    topics: listTopicsByTrack(db, track.id).map((topic): RoadmapTopicView => {
+    topics: listRoadmapTopicsByTrack(db, track.id).map((topic): RoadmapTopicView => {
       const roadmapEntry = getRoadmapEntryByTopic(db, topic.id);
       const mastery = getMasteryRecordByTopic(db, topic.id);
       return {

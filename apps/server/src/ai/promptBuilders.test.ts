@@ -2,6 +2,8 @@ import {
   buildCurriculumUserMessage,
   buildExerciseUserMessage,
   buildEvaluationUserMessage,
+  buildTheoryUserMessage,
+  buildExamGradingUserMessage,
 } from './promptBuilders';
 
 describe('buildCurriculumUserMessage', () => {
@@ -113,5 +115,65 @@ describe('buildEvaluationUserMessage', () => {
 
     expect(message).toContain('(empty)');
     expect(message).toContain('(no hidden tests)');
+  });
+});
+
+describe('buildTheoryUserMessage', () => {
+  it('includes the topic, context, and focus areas when present', () => {
+    const message = buildTheoryUserMessage({
+      topic: 'Recursion',
+      context: 'Functions calling themselves',
+      focusAreas: ['base cases', 'stack overflow'],
+    });
+
+    expect(message).toContain('Recursion');
+    expect(message).toContain('Functions calling themselves');
+    expect(message).toContain('base cases');
+    expect(message).toContain('stack overflow');
+  });
+
+  it('notes when there are no specific focus areas yet', () => {
+    const message = buildTheoryUserMessage({ topic: 'Recursion', context: '', focusAreas: [] });
+    expect(message).toContain('has not shown any specific weak spots yet');
+  });
+});
+
+describe('buildExamGradingUserMessage', () => {
+  it('formats multiple-choice questions with the deterministic ground truth', () => {
+    const message = buildExamGradingUserMessage({
+      questions: [
+        {
+          id: 'q1',
+          questionMd: 'Pick the base case behavior.',
+          questionType: 'multiple_choice',
+          userAnswer: 'Stops recursion',
+          correctAnswer: 'Stops recursion',
+          gradingNotes: '',
+          isCorrectDeterministic: true,
+        },
+      ],
+    });
+
+    expect(message).toContain('multiple_choice, ground-truth correct: true');
+    expect(message).toContain('Pick the base case behavior.');
+  });
+
+  it('formats short-answer questions with grading notes and no answer fallback', () => {
+    const message = buildExamGradingUserMessage({
+      questions: [
+        {
+          id: 'q2',
+          questionMd: 'Explain a base case.',
+          questionType: 'short_answer',
+          userAnswer: '',
+          correctAnswer: 'The stopping condition.',
+          gradingNotes: 'Accept any description of a stopping condition.',
+        },
+      ],
+    });
+
+    expect(message).toContain('short_answer');
+    expect(message).toContain('(no answer)');
+    expect(message).toContain('Accept any description of a stopping condition.');
   });
 });

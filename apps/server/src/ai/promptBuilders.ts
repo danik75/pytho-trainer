@@ -1,4 +1,9 @@
-import { DOMAIN_CATALOG, type Difficulty, type TestResult } from '@pytho-trainer/shared';
+import {
+  DOMAIN_CATALOG,
+  type Difficulty,
+  type QuestionType,
+  type TestResult,
+} from '@pytho-trainer/shared';
 
 export interface CurriculumGenerationInput {
   goals: string;
@@ -108,4 +113,72 @@ Program stdout: ${input.stdout || '(empty)'}
 Program stderr: ${input.stderr || '(empty)'}
 
 Evaluate this submission now.`;
+}
+
+export interface TheoryGenerationInput {
+  topic: string;
+  context: string;
+  focusAreas: string[];
+}
+
+export const THEORY_SYSTEM_PROMPT = `You are an expert Python instructor writing a short theory lesson for a student, followed by a quiz to check understanding.
+
+Rules:
+- explanationMd should be a clear, concise, well-structured explanation of the concept (use markdown: headings, short paragraphs, code examples where helpful). Assume the student is stuck or unfamiliar with it - do not assume prior mastery.
+- Write 3-5 exam questions mixing multiple_choice and short_answer types.
+- For multiple_choice questions, choices must contain 3-5 plausible options and correctAnswer must exactly match one of them.
+- For short_answer questions, choices must be null, and gradingNotes should describe what a correct answer looks like (used as a grading rubric).
+- Questions should directly test the explanation just given, especially the specific focus areas listed, not trivia unrelated to the lesson.`;
+
+export function buildTheoryUserMessage(input: TheoryGenerationInput): string {
+  const focusLines =
+    input.focusAreas.length > 0
+      ? `Specifically address these areas the student is struggling with: ${input.focusAreas.join(', ')}`
+      : 'The student has not shown any specific weak spots yet - cover the concept generally.';
+
+  return `Topic to teach: ${input.topic}
+${input.context ? `Context: ${input.context}\n` : ''}
+${focusLines}
+
+Write the theory lesson and quiz now.`;
+}
+
+export interface ExamGradingQuestionInput {
+  id: string;
+  questionMd: string;
+  questionType: QuestionType;
+  userAnswer: string;
+  correctAnswer: string;
+  gradingNotes: string;
+  isCorrectDeterministic?: boolean;
+}
+
+export interface ExamGradingInput {
+  questions: ExamGradingQuestionInput[];
+}
+
+export const EXAM_GRADING_SYSTEM_PROMPT = `You are grading a student's exam attempt for a theory lesson.
+
+Rules:
+- For multiple_choice questions, correctness is already determined deterministically and given to you as ground truth - do not re-judge it, just factor it into your overall assessment and write brief feedback.
+- For short_answer questions, judge whether the student's answer demonstrates real understanding, using the provided grading notes as a rubric - not a strict string match.
+- score is this exam attempt's overall grade from 0 to 1, combining both question types.
+- suggestedMasteryScore is an absolute 0-1 assessment of the student's overall mastery of this topic going forward (may differ from score - e.g. one lucky guess should not imply full mastery).
+- perQuestionFeedback must have exactly one entry per question id given, keyed exactly as given, with a short feedback string for each.`;
+
+export function buildExamGradingUserMessage(input: ExamGradingInput): string {
+  const questionBlocks = input.questions.map((q) => {
+    if (q.questionType === 'multiple_choice') {
+      return `Question ${q.id} (multiple_choice, ground-truth correct: ${String(q.isCorrectDeterministic)}):
+${q.questionMd}
+Student answered: ${q.userAnswer || '(no answer)'}
+Correct answer: ${q.correctAnswer}`;
+    }
+    return `Question ${q.id} (short_answer):
+${q.questionMd}
+Student answered: ${q.userAnswer || '(no answer)'}
+Grading notes: ${q.gradingNotes}`;
+  });
+
+  return `${questionBlocks.join('\n\n')}\n\nGrade this exam attempt now.`;
 }

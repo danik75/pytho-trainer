@@ -112,6 +112,59 @@ describe('decideNextStep', () => {
     expect(afterCorrect.nextState.weakSpots).toEqual([]);
   });
 
+  it('inserts a theory session when the very first attempt fails badly', () => {
+    const result = decideNextStep(FRESH, {
+      correct: false,
+      suggestedMasteryScore: 0.1,
+      identifiedWeakSpots: ['no grasp of the concept'],
+    });
+
+    expect(result.decision).toBe('insert_theory_session');
+    expect(result.status).toBe('in_progress');
+  });
+
+  it('does not insert a theory session on a merely mediocre (not badly failed) first attempt', () => {
+    const result = decideNextStep(FRESH, {
+      correct: false,
+      suggestedMasteryScore: 0.5,
+      identifiedWeakSpots: ['minor mistake'],
+    });
+
+    expect(result.decision).toBe('next_exercise');
+  });
+
+  it('inserts a theory session when the same weak spot persists across attempts', () => {
+    const afterFirst = decideNextStep(FRESH, {
+      correct: false,
+      suggestedMasteryScore: 0.5,
+      identifiedWeakSpots: ['recursion'],
+    });
+    expect(afterFirst.decision).toBe('next_exercise');
+
+    const afterSecond = decideNextStep(afterFirst.nextState, {
+      correct: false,
+      suggestedMasteryScore: 0.5,
+      identifiedWeakSpots: ['recursion'],
+    });
+
+    expect(afterSecond.decision).toBe('insert_theory_session');
+  });
+
+  it('does not insert a theory session once a previously wrong answer becomes correct', () => {
+    const afterWrong = decideNextStep(FRESH, {
+      correct: false,
+      suggestedMasteryScore: 0.5,
+      identifiedWeakSpots: ['recursion'],
+    });
+    const afterCorrect = decideNextStep(afterWrong.nextState, {
+      correct: true,
+      suggestedMasteryScore: 0.6,
+      identifiedWeakSpots: [],
+    });
+
+    expect(afterCorrect.decision).toBe('next_exercise');
+  });
+
   it('flags the topic as struggling once the max-attempts safety valve is hit', () => {
     let state = FRESH;
     let lastResult = decideNextStep(state, {

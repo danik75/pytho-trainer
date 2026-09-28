@@ -68,6 +68,20 @@ export function listTopicsByTrack(db: Database.Database, trackId: string): Topic
   return rows.map(mapRow);
 }
 
+/**
+ * Same as listTopicsByTrack but excludes on_demand topics - used by the
+ * roadmap view, since ad hoc "teach me X" topics are never part of the
+ * curriculum's regular track/roadmap display.
+ */
+export function listRoadmapTopicsByTrack(db: Database.Database, trackId: string): Topic[] {
+  const rows = db
+    .prepare(
+      "SELECT * FROM topics WHERE track_id = ? AND origin = 'roadmap' ORDER BY order_index ASC",
+    )
+    .all(trackId) as TopicRow[];
+  return rows.map(mapRow);
+}
+
 export function getTopic(db: Database.Database, topicId: string): Topic | null {
   const row = db.prepare('SELECT * FROM topics WHERE id = ?').get(topicId) as TopicRow | undefined;
   return row ? mapRow(row) : null;

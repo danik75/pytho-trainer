@@ -1,18 +1,19 @@
 import type Database from 'better-sqlite3';
-import type {
-  Exercise,
-  ExamQuestion,
-  MasteryRecord,
-  StudySession,
-  Submission,
-} from '@pytho-trainer/shared';
+import type { Exercise, ExamAttempt, MasteryRecord } from '@pytho-trainer/shared';
 import type { AiClient } from '../ai/client';
-import { evaluateSubmission } from '../ai/evaluation';
+import { gradeExam } from '../ai/examGrading';
 import { generateExercise } from '../ai/exercises';
 import { generateTheorySession } from '../ai/theory';
-import { getExercise, insertExercise, listExercisesBySession } from '../db/repositories/exercises';
+import { gradeMultipleChoice } from '../exams/deterministicGrading';
+import { insertExamAttempt } from '../db/repositories/examAttempts';
+import { listExamQuestionsBySession } from '../db/repositories/examQuestions';
+import {
+  countSessionsForTopic,
+  getStudySession,
+  insertStudySession,
+} from '../db/repositories/sessions';
+import { insertExercise } from '../db/repositories/exercises';
 import { insertExamQuestion } from '../db/repositories/examQuestions';
-import { getStudySession, insertStudySession } from '../db/repositories/sessions';
 import { getTopic } from '../db/repositories/topics';
 import {
   getRoadmapEntryByTopic,
@@ -20,18 +21,14 @@ import {
   unlockNextRoadmapEntry,
 } from '../db/repositories/roadmap';
 import { getMasteryRecordByTopic, updateMasteryAfterEvaluation } from '../db/repositories/mastery';
-import { insertSubmission } from '../db/repositories/submissions';
-import { runSubmission, type SandboxConfig } from '../sandbox/runner';
 import { decideNextStep, type SessionDecision } from '../orchestration/sessionEngine';
-import { NotFoundError } from '../errors';
+import { InvalidStateError, NotFoundError } from '../errors';
+import type { TheorySessionResult } from './submitExercise';
 
-export interface TheorySessionResult {
-  session: StudySession;
-  examQuestions: ExamQuestion[];
-}
+const PASSING_SCORE = 0.7;
 
-export interface SubmitExerciseResult {
-  submission: Submission;
+export interface SubmitExamResult {
+  examAttempt: ExamAttempt;
   masteryRecord: MasteryRecord;
   decision: SessionDecision;
   nextExercise: Exercise | null;
@@ -39,25 +36,22 @@ export interface SubmitExerciseResult {
 }
 
 /**
- * Runs a submission through the sandbox, has the AI evaluate it alongside
- * the deterministic test results, then applies the mastery engine's
- * decision: generate the next exercise, insert a theory session for a
- * persistent conceptual gap, advance the roadmap, or flag the topic as
- * struggling. AI calls happen before the (synchronous) persistence
- * transaction, since better-sqlite3 transactions can't await.
+ * Grades a theory session's exam (multiple-choice deterministically, short
+ * answers by AI), then applies the same mastery engine used for coding
+ * exercises so the exam's outcome feeds the same next_exercise /
+ * advance_topic / insert_theory_session / flag_struggling decision.
  */
-export async function submitExercise(
+export async function submitExam(
   db: Database.Database,
   aiClient: AiClient,
-  sandboxConfig: SandboxConfig,
-  exerciseId: string,
-  code: string,
-): Promise<SubmitExerciseResult> {
-  const exercise = getExercise(db, exerciseId);
-  if (!exercise) throw new NotFoundError(`Exercise ${exerciseId} not found`);
-
-  const session = getStudySession(db, exercise.sessionId);
-  if (!session) throw new NotFoundError(`Session ${exercise.sessionId} not found`);
+  sessionId: string,
+  answers: Record<string, string>,
+): Promise<SubmitExamResult> {
+  const session = getStudySession(db, sessionId);
+  if (!session) throw new NotFoundError(`Session ${sessionId} not found`);
+  if (session.sessionType !== 'theory') {
+    throw new InvalidStateError(`Session ${sessionId} is not a theory session`);
+  }
 
   const topic = getTopic(db, session.topicId);
   if (!topic) throw new NotFoundError(`Topic ${session.topicId} not found`);
@@ -67,15 +61,26 @@ export async function submitExercise(
     throw new NotFoundError(`Mastery record for topic ${session.topicId} not found`);
   }
 
-  const execution = await runSubmission(code, exercise.hiddenTests, sandboxConfig);
+  const questions = listExamQuestionsBySession(db, sessionId);
 
-  const evaluation = await evaluateSubmission(aiClient, {
-    exercisePrompt: exercise.prompt,
-    code,
-    stdout: execution.stdout,
-    stderr: execution.stderr,
-    testResults: execution.testResults,
+  const gradingQuestions = questions.map((question) => {
+    const userAnswer = answers[question.id] ?? '';
+    return {
+      id: question.id,
+      questionMd: question.questionMd,
+      questionType: question.questionType,
+      userAnswer,
+      correctAnswer: question.correctAnswer,
+      gradingNotes: question.gradingNotes,
+      isCorrectDeterministic:
+        question.questionType === 'multiple_choice'
+          ? gradeMultipleChoice(question.correctAnswer, userAnswer)
+          : undefined,
+    };
   });
+
+  const grading = await gradeExam(aiClient, { questions: gradingQuestions });
+  const passed = grading.score >= PASSING_SCORE;
 
   const { nextState, decision, status } = decideNextStep(
     {
@@ -85,9 +90,9 @@ export async function submitExercise(
       weakSpots: currentMastery.weakSpots,
     },
     {
-      correct: evaluation.correct,
-      suggestedMasteryScore: evaluation.suggestedMasteryScore,
-      identifiedWeakSpots: evaluation.identifiedWeakSpots,
+      correct: passed,
+      suggestedMasteryScore: grading.suggestedMasteryScore,
+      identifiedWeakSpots: passed ? [] : currentMastery.weakSpots,
     },
   );
 
@@ -99,7 +104,7 @@ export async function submitExercise(
           learningObjectives: topic.learningObjectives,
           difficulty: topic.difficulty,
           weakSpots: nextState.weakSpots,
-          recentExercisePrompts: listExercisesBySession(db, session.id).map((ex) => ex.prompt),
+          recentExercisePrompts: [],
         })
       : null;
 
@@ -113,15 +118,11 @@ export async function submitExercise(
       : null;
 
   const persist = db.transaction(() => {
-    const submission = insertSubmission(db, {
-      exerciseId,
-      code,
-      stdout: execution.stdout,
-      stderr: execution.stderr,
-      exitCode: execution.exitCode,
-      timedOut: execution.timedOut,
-      testResults: execution.testResults,
-      aiEvaluation: evaluation,
+    const examAttempt = insertExamAttempt(db, {
+      sessionId,
+      answers,
+      score: grading.score,
+      aiFeedback: { overall: grading.overallFeedback, perQuestion: grading.perQuestionFeedback },
       masteryScoreAfter: nextState.masteryScore,
     });
 
@@ -143,8 +144,13 @@ export async function submitExercise(
 
     let nextExercise: Exercise | null = null;
     if (nextExerciseGeneration) {
+      const exerciseSession = insertStudySession(db, {
+        topicId: session.topicId,
+        sessionType: 'exercise',
+        sessionNumber: countSessionsForTopic(db, session.topicId) + 1,
+      });
       nextExercise = insertExercise(db, {
-        sessionId: session.id,
+        sessionId: exerciseSession.id,
         prompt: nextExerciseGeneration.prompt,
         starterCode: nextExerciseGeneration.starterCode,
         difficulty: nextExerciseGeneration.difficulty,
@@ -159,7 +165,7 @@ export async function submitExercise(
       const newSession = insertStudySession(db, {
         topicId: session.topicId,
         sessionType: 'theory',
-        sessionNumber: session.sessionNumber + 1,
+        sessionNumber: countSessionsForTopic(db, session.topicId) + 1,
         explanationMd: theoryGeneration.explanationMd,
       });
       const examQuestions = theoryGeneration.examQuestions.map((q) =>
@@ -176,10 +182,10 @@ export async function submitExercise(
       theorySession = { session: newSession, examQuestions };
     }
 
-    return { submission, masteryRecord, nextExercise, theorySession };
+    return { examAttempt, masteryRecord, nextExercise, theorySession };
   });
 
-  const { submission, masteryRecord, nextExercise, theorySession } = persist();
+  const { examAttempt, masteryRecord, nextExercise, theorySession } = persist();
 
-  return { submission, masteryRecord, decision, nextExercise, theorySession };
+  return { examAttempt, masteryRecord, decision, nextExercise, theorySession };
 }
