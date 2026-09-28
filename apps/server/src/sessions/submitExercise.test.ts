@@ -32,6 +32,7 @@ const CORRECT_EVALUATION: SubmissionEvaluationGeneration = {
   correct: true,
   understandingNotes: 'Good.',
   feedback: 'Nice work!',
+  idiomaticFeedback: '',
   suggestedMasteryScore: 0.95,
   identifiedWeakSpots: [],
 };
@@ -39,6 +40,7 @@ const CORRECT_EVALUATION: SubmissionEvaluationGeneration = {
 const NEXT_EXERCISE: ExerciseGeneration = {
   prompt: 'A second exercise.',
   starterCode: '',
+  conceptsMd: 'More on functions.',
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds2', functionName: 'add', args: [1, 1], expected: 2 }],
@@ -230,6 +232,7 @@ describe('submitExercise', () => {
       correct: false,
       understandingNotes: 'Not quite.',
       feedback: 'Try again.',
+      idiomaticFeedback: '',
       suggestedMasteryScore: 0.5,
       identifiedWeakSpots: [],
     };
@@ -270,6 +273,7 @@ describe('submitExercise', () => {
       correct: false,
       understandingNotes: 'No grasp of the concept yet.',
       feedback: 'Let’s go over this concept again.',
+      idiomaticFeedback: '',
       suggestedMasteryScore: 0.1,
       identifiedWeakSpots: ['what functions return'],
     };

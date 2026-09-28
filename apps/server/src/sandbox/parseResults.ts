@@ -1,12 +1,6 @@
-import type { HiddenTestSpec, TestResult } from '@pytho-trainer/shared';
+import type { ExecutionResult, HiddenTestSpec, TestResult } from '@pytho-trainer/shared';
 
-export interface SandboxExecutionResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
-  timedOut: boolean;
-  testResults: TestResult[];
-}
+export type SandboxExecutionResult = ExecutionResult;
 
 export const RESULTS_PREFIX = '##RESULTS##';
 const MAX_OUTPUT_LENGTH = 100_000;

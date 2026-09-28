@@ -13,6 +13,7 @@ import { startTopic } from './startTopic';
 const SAMPLE_EXERCISE: ExerciseGeneration = {
   prompt: 'Write a function that adds two numbers.',
   starterCode: 'def add(a, b):\n    pass\n',
+  conceptsMd: '# Functions\n\nUse `def` to define a function.',
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds', functionName: 'add', args: [2, 3], expected: 5 }],

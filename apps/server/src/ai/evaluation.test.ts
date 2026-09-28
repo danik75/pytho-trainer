@@ -1,11 +1,13 @@
 import type { SubmissionEvaluationGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
+import { HAIKU_MODEL } from './client';
 import { evaluateSubmission } from './evaluation';
 
 const SAMPLE: SubmissionEvaluationGeneration = {
   correct: true,
   understandingNotes: 'Solid grasp of arithmetic and f-strings.',
   feedback: 'Great job!',
+  idiomaticFeedback: '',
   suggestedMasteryScore: 0.8,
   identifiedWeakSpots: [],
 };
@@ -25,5 +27,6 @@ describe('evaluateSubmission', () => {
     expect(result).toEqual(SAMPLE);
     expect(aiClient.requests[0]?.toolName).toBe('evaluate_submission');
     expect(aiClient.requests[0]?.messages[0]?.content).toContain('adds');
+    expect(aiClient.requests[0]?.model).toBe(HAIKU_MODEL);
   });
 });

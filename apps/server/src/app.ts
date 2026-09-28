@@ -12,6 +12,7 @@ import { registerSessionRoutes } from './routes/sessions';
 import { registerExerciseRoutes } from './routes/exercises';
 import { registerTeachRoutes } from './routes/teach';
 import { registerOverviewRoutes } from './routes/overview';
+import { registerSandboxRoutes } from './routes/sandbox';
 import type { AiClient } from './ai/client';
 import type { SandboxConfig } from './sandbox/runner';
 import { AiGenerationError, InvalidStateError, NotFoundError } from './errors';
@@ -36,6 +37,7 @@ export function buildApp({ db, aiClient, sandboxConfig }: AppDependencies): Fast
   registerExerciseRoutes(app, db, aiClient, sandboxConfig);
   registerTeachRoutes(app, db, aiClient);
   registerOverviewRoutes(app, db, aiClient);
+  registerSandboxRoutes(app, sandboxConfig);
 
   app.setErrorHandler<FastifyError>((error, _request, reply) => {
     if (error instanceof ZodError) {

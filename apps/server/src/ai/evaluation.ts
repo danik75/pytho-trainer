@@ -3,7 +3,7 @@ import {
   submissionEvaluationSchema,
   type SubmissionEvaluationGeneration,
 } from '@pytho-trainer/shared';
-import type { AiClient } from './client';
+import { HAIKU_MODEL, type AiClient } from './client';
 import { generateStructured } from './generateStructured';
 import {
   EVALUATION_SYSTEM_PROMPT,
@@ -28,5 +28,6 @@ export async function evaluateSubmission(
     schema: submissionEvaluationSchema,
     jsonSchema: JSON_SCHEMA as Record<string, unknown>,
     maxTokens: 2048,
+    model: HAIKU_MODEL,
   });
 }

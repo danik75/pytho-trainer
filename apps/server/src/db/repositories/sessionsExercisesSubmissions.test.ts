@@ -168,6 +168,7 @@ describe('submissions repository', () => {
       correct: true,
       understandingNotes: 'Good',
       feedback: 'Nice job',
+      idiomaticFeedback: '',
       suggestedMasteryScore: 0.9,
       identifiedWeakSpots: [],
     };

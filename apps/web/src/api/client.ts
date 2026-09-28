@@ -1,7 +1,9 @@
 import type {
   DomainCatalogEntry,
+  ExecutionResult,
   Exercise,
   ExamAttempt,
+  ExerciseHelpMessage,
   LearningOverview,
   MasteryRecord,
   QuestionType,
@@ -120,6 +122,20 @@ interface SubmitExerciseApiResponse {
   theorySession: TheorySessionResult | null;
 }
 
+export function runExerciseCode(exerciseId: string, code: string): Promise<ExecutionResult> {
+  return request<ExecutionResult>(`/api/exercises/${exerciseId}/run`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function runSandboxCode(code: string): Promise<ExecutionResult> {
+  return request<ExecutionResult>('/api/sandbox/run', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
 export async function submitExerciseCode(
   exerciseId: string,
   code: string,
@@ -130,6 +146,21 @@ export async function submitExerciseCode(
   });
   const { submission, ...rest } = response;
   return { ...rest, result: submission };
+}
+
+export function getExerciseHelp(exerciseId: string): Promise<ExerciseHelpMessage[]> {
+  return request<ExerciseHelpMessage[]>(`/api/exercises/${exerciseId}/help`);
+}
+
+export function askExerciseHelp(
+  exerciseId: string,
+  question: string,
+  code: string,
+): Promise<ExerciseHelpMessage[]> {
+  return request<ExerciseHelpMessage[]>(`/api/exercises/${exerciseId}/help`, {
+    method: 'POST',
+    body: JSON.stringify({ question, code }),
+  });
 }
 
 // The answer key (correctAnswer/gradingNotes) is never sent to the client.

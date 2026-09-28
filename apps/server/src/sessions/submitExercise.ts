@@ -147,6 +147,7 @@ export async function submitExercise(
         sessionId: session.id,
         prompt: nextExerciseGeneration.prompt,
         starterCode: nextExerciseGeneration.starterCode,
+        conceptsMd: nextExerciseGeneration.conceptsMd,
         difficulty: nextExerciseGeneration.difficulty,
         targetWeakSpots: nextExerciseGeneration.targetWeakSpots,
         hiddenTests: nextExerciseGeneration.hiddenTests,

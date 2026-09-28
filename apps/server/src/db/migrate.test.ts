@@ -14,11 +14,13 @@ describe('runMigrations', () => {
 
   it('is idempotent when run more than once', () => {
     const db = createTestDb();
+    const countMigrations = () =>
+      (db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as { count: number })
+        .count;
+    const appliedOnce = countMigrations();
+
     expect(() => runMigrations(db)).not.toThrow();
 
-    const appliedCount = db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as {
-      count: number;
-    };
-    expect(appliedCount.count).toBe(1);
+    expect(countMigrations()).toBe(appliedOnce);
   });
 });

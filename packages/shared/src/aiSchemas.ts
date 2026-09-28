@@ -36,6 +36,7 @@ export const hiddenTestGenerationSchema = z.object({
 export const exerciseGenerationSchema = z.object({
   prompt: z.string().min(1),
   starterCode: z.string(),
+  conceptsMd: z.string().min(1),
   difficulty: difficultySchema,
   targetWeakSpots: z.array(z.string()),
   hiddenTests: z.array(hiddenTestGenerationSchema).min(1),
@@ -46,10 +47,16 @@ export const submissionEvaluationSchema = z.object({
   correct: z.boolean(),
   understandingNotes: z.string(),
   feedback: z.string().min(1),
+  idiomaticFeedback: z.string(),
   suggestedMasteryScore: z.number().min(0).max(1),
   identifiedWeakSpots: z.array(z.string()),
 });
 export type SubmissionEvaluationGeneration = z.infer<typeof submissionEvaluationSchema>;
+
+export const exerciseHelpAnswerSchema = z.object({
+  answer: z.string().min(1),
+});
+export type ExerciseHelpAnswerGeneration = z.infer<typeof exerciseHelpAnswerSchema>;
 
 export const examQuestionGenerationSchema = z.object({
   questionMd: z.string().min(1),

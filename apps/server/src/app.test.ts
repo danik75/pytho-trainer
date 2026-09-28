@@ -8,6 +8,7 @@ import type {
   CurriculumGeneration,
   ExamGradingGeneration,
   ExerciseGeneration,
+  ExerciseHelpAnswerGeneration,
   OverviewNarrativeGeneration,
   SubmissionEvaluationGeneration,
   TheoryGeneration,
@@ -59,6 +60,7 @@ const SAMPLE_CURRICULUM: CurriculumGeneration = {
 const SAMPLE_EXERCISE: ExerciseGeneration = {
   prompt: 'Write a function that adds two numbers.',
   starterCode: 'def add(a, b):\n    pass\n',
+  conceptsMd: '# Functions\n\nUse `def` to define a function.',
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds two numbers', functionName: 'add', args: [2, 3], expected: 5 }],
@@ -68,6 +70,7 @@ const SAMPLE_EVALUATION: SubmissionEvaluationGeneration = {
   correct: true,
   understandingNotes: 'Solid.',
   feedback: 'Nice work!',
+  idiomaticFeedback: '',
   suggestedMasteryScore: 0.9,
   identifiedWeakSpots: [],
 };
@@ -94,6 +97,10 @@ const SAMPLE_EXAM_GRADING: ExamGradingGeneration = {
 
 const SAMPLE_NARRATIVE: OverviewNarrativeGeneration = {
   narrativeMd: '# Great progress so far!',
+};
+
+const SAMPLE_HELP_ANSWER: ExerciseHelpAnswerGeneration = {
+  answer: 'Use the `+` operator to add the two parameters together.',
 };
 
 describe('app routes', () => {
@@ -335,6 +342,106 @@ describe('app routes', () => {
       });
       expect(response.statusCode).toBe(404);
     });
+
+    it('POST /api/exercises/:exerciseId/run executes code without grading or persisting a submission', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const startResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/start`,
+      });
+      const { exercise } = startResponse.json();
+
+      mockExeca.mockResolvedValue({
+        stdout:
+          '##RESULTS##' +
+          JSON.stringify({
+            stdout: 'hello\n',
+            stderr: '',
+            testResults: [{ name: 'adds two numbers', passed: true }],
+          }),
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      const requestCountBeforeRun = aiClient.requests.length;
+      const runResponse = await app.inject({
+        method: 'POST',
+        url: `/api/exercises/${exercise.id}/run`,
+        payload: { code: 'def add(a, b):\n    print("hello")\n    return a + b\n' },
+      });
+
+      expect(runResponse.statusCode).toBe(200);
+      const result = runResponse.json();
+      expect(result.stdout).toBe('hello\n');
+      expect(result.testResults).toEqual([{ name: 'adds two numbers', passed: true }]);
+
+      // Confirms no AI evaluation/next-exercise call happened, unlike /submit.
+      expect(aiClient.requests.length).toBe(requestCountBeforeRun);
+    });
+
+    it('POST /api/exercises/:exerciseId/run returns 404 for an unknown exercise', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/exercises/missing/run',
+        payload: { code: 'pass' },
+      });
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('exercise tutor help: starts empty, answers a question, and persists the chat history', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const startResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/start`,
+      });
+      const { exercise } = startResponse.json();
+
+      const emptyHistory = await app.inject({
+        method: 'GET',
+        url: `/api/exercises/${exercise.id}/help`,
+      });
+      expect(emptyHistory.statusCode).toBe(200);
+      expect(emptyHistory.json()).toEqual([]);
+
+      aiClient.enqueue(SAMPLE_HELP_ANSWER);
+      const askResponse = await app.inject({
+        method: 'POST',
+        url: `/api/exercises/${exercise.id}/help`,
+        payload: { question: 'How do I add two numbers?', code: 'def add(a, b):\n    pass\n' },
+      });
+      expect(askResponse.statusCode).toBe(201);
+      const messages = askResponse.json();
+      expect(messages).toHaveLength(2);
+      expect(messages[0]).toMatchObject({ role: 'user', content: 'How do I add two numbers?' });
+      expect(messages[1]).toMatchObject({ role: 'assistant', content: SAMPLE_HELP_ANSWER.answer });
+
+      const helpToolCall = aiClient.requests.find((r) => r.toolName === 'answer_exercise_question');
+      expect(helpToolCall?.messages[0]?.content).toContain('How do I add two numbers?');
+
+      const historyResponse = await app.inject({
+        method: 'GET',
+        url: `/api/exercises/${exercise.id}/help`,
+      });
+      expect(historyResponse.json()).toHaveLength(2);
+    });
+
+    it('POST /api/exercises/:exerciseId/help returns 404 for an unknown exercise', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/exercises/missing/help',
+        payload: { question: 'help?', code: '' },
+      });
+      expect(response.statusCode).toBe(404);
+    });
   });
 
   describe('theory sessions, exams, and on-demand teaching', () => {
@@ -443,6 +550,30 @@ describe('app routes', () => {
 
       const overviewResponse = await app.inject({ method: 'GET', url: '/api/overview' });
       expect(overviewResponse.json().narrativeMd).toBe(SAMPLE_NARRATIVE.narrativeMd);
+    });
+  });
+
+  describe('sandbox', () => {
+    it('POST /api/sandbox/run executes arbitrary code with no hidden tests and no AI call', async () => {
+      const { app, aiClient } = buildTestApp();
+      mockExeca.mockResolvedValue({
+        stdout: '##RESULTS##' + JSON.stringify({ stdout: 'hi\n', stderr: '', testResults: [] }),
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/sandbox/run',
+        payload: { code: 'print("hi")' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const result = response.json();
+      expect(result.stdout).toBe('hi\n');
+      expect(result.testResults).toEqual([]);
+      expect(aiClient.requests).toHaveLength(0);
     });
   });
 });

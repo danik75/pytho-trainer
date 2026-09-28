@@ -97,9 +97,20 @@ export interface Exercise {
   sessionId: string;
   prompt: string;
   starterCode: string;
+  conceptsMd: string;
   difficulty: Difficulty;
   targetWeakSpots: string[];
   hiddenTests: HiddenTestSpec[];
+  createdAt: string;
+}
+
+export type ExerciseHelpRole = 'user' | 'assistant';
+
+export interface ExerciseHelpMessage {
+  id: string;
+  exerciseId: string;
+  role: ExerciseHelpRole;
+  content: string;
   createdAt: string;
 }
 
@@ -130,10 +141,19 @@ export interface TestResult {
   details?: string;
 }
 
+export interface ExecutionResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  timedOut: boolean;
+  testResults: TestResult[];
+}
+
 export interface SubmissionEvaluation {
   correct: boolean;
   understandingNotes: string;
   feedback: string;
+  idiomaticFeedback: string;
   suggestedMasteryScore: number;
   identifiedWeakSpots: string[];
 }

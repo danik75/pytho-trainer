@@ -60,6 +60,7 @@ export async function startTopic(
     sessionId: session.id,
     prompt: generation.prompt,
     starterCode: generation.starterCode,
+    conceptsMd: generation.conceptsMd,
     difficulty: generation.difficulty,
     targetWeakSpots: generation.targetWeakSpots,
     hiddenTests: generation.hiddenTests,

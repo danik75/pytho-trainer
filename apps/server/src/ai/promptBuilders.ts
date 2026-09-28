@@ -59,7 +59,8 @@ Rules:
 - Provide starter code: function signature(s) with a short docstring and a body that raises NotImplementedError or contains "pass".
 - Provide at least one hidden test: a function name to call, concrete positional arguments, and the exact expected return value. Tests must be fully deterministic - no randomness, no floating point rounding ambiguity, no reliance on dict/set ordering.
 - Never repeat a prompt the student has already seen for this topic.
-- Target the given difficulty tier, and when weak spots are listed, design the exercise to directly probe those weak spots.`;
+- Target the given difficulty tier, and when weak spots are listed, design the exercise to directly probe those weak spots.
+- conceptsMd must teach, in markdown, every piece of Python syntax and every concept the student needs in order to solve this specific exercise, written for someone who may never have seen it before - do not assume they already know it just because the topic is "core" or "advanced". Include short code examples of the relevant syntax (not the exercise's own solution). This is read before the student attempts the exercise, so it must stand on its own.`;
 
 export function buildExerciseUserMessage(input: ExerciseGenerationInput): string {
   return `Topic: ${input.topicTitle}
@@ -89,7 +90,8 @@ Rules:
 - Assess whether the code demonstrates real understanding of the underlying concept, not just accidental correctness (e.g. hardcoding the expected outputs).
 - suggestedMasteryScore is an absolute score from 0 to 1 reflecting the student's overall demonstrated mastery of this topic after this submission (not just a grade for this one exercise) - weigh correctness heavily, but also code quality and understanding shown.
 - identifiedWeakSpots should name specific concepts the student appears to be struggling with (an empty array if none stand out).
-- feedback is shown directly to the student: keep it concise, specific, and encouraging even when the submission is wrong.`;
+- feedback is shown directly to the student: keep it concise, specific, and encouraging even when the submission is wrong.
+- idiomaticFeedback: regardless of whether the submission is correct, point out a more idiomatic, Pythonic, or otherwise better way to write this specific solution (e.g. a built-in, a comprehension, a standard-library function, a simpler control-flow structure), with a short markdown code example. If the submission is already about as idiomatic as it reasonably gets for the student's level, return an empty string rather than inventing a nitpick.`;
 
 export function buildEvaluationUserMessage(input: EvaluationInput): string {
   const testSummary = input.testResults
@@ -114,6 +116,54 @@ Program stdout: ${input.stdout || '(empty)'}
 Program stderr: ${input.stderr || '(empty)'}
 
 Evaluate this submission now.`;
+}
+
+export interface ExerciseHelpChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ExerciseHelpInput {
+  exercisePrompt: string;
+  conceptsMd: string;
+  currentCode: string;
+  history: ExerciseHelpChatMessage[];
+  question: string;
+}
+
+export const EXERCISE_HELP_SYSTEM_PROMPT = `You are a friendly, patient Python tutor helping a student who is stuck on a coding exercise, in a live sidebar chat next to their editor.
+
+Rules:
+- You are given the exercise prompt, the concepts primer already shown to the student, and their current in-progress code - use all of it to give specific, targeted help rather than generic advice.
+- You are NOT told the hidden test cases or expected outputs, and you have no way to know them - never claim to know whether their code currently passes.
+- Prefer explaining concepts, pointing out the specific bug or gap, and giving small illustrative snippets over immediately handing over a complete solution. If the student explicitly asks for the full solution or keeps struggling after hints, go ahead and give it - this is a personal tutor, not a graded exam.
+- Keep answers focused and conversational (markdown allowed, short code blocks welcome), not a full lecture unless asked for one.`;
+
+export function buildExerciseHelpUserMessage(input: ExerciseHelpInput): string {
+  const historyBlock =
+    input.history.length > 0
+      ? input.history
+          .map((m) => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`)
+          .join('\n\n')
+      : '(no prior messages in this chat)';
+
+  return `Exercise prompt:
+${input.exercisePrompt}
+
+Concepts primer already shown to the student:
+${input.conceptsMd}
+
+Student's current code:
+\`\`\`python
+${input.currentCode || '(empty)'}
+\`\`\`
+
+Conversation so far:
+${historyBlock}
+
+Student's new question: ${input.question}
+
+Answer the student's question now.`;
 }
 
 export interface TheoryGenerationInput {

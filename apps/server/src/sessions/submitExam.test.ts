@@ -87,6 +87,7 @@ function setupTheoryTopic(db: ReturnType<typeof createTestDb>) {
 const NEXT_EXERCISE: ExerciseGeneration = {
   prompt: 'Write a recursive factorial function.',
   starterCode: '',
+  conceptsMd: 'Recursion: a function that calls itself.',
   difficulty: 'core',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'factorial_5', functionName: 'factorial', args: [5], expected: 120 }],

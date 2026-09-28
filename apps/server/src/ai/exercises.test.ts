@@ -1,10 +1,12 @@
 import type { ExerciseGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
+import { SONNET_MODEL } from './client';
 import { generateExercise } from './exercises';
 
 const SAMPLE: ExerciseGeneration = {
   prompt: 'Write a function that adds two numbers.',
   starterCode: 'def add(a, b):\n    pass\n',
+  conceptsMd: '# Functions\n\nUse `def` to define a function.',
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds two numbers', functionName: 'add', args: [2, 3], expected: 5 }],
@@ -25,5 +27,6 @@ describe('generateExercise', () => {
 
     expect(result).toEqual(SAMPLE);
     expect(aiClient.requests[0]?.toolName).toBe('generate_exercise');
+    expect(aiClient.requests[0]?.model).toBe(SONNET_MODEL);
   });
 });
