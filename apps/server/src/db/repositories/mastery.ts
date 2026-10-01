@@ -49,6 +49,16 @@ export function markMasteryInProgress(db: Database.Database, topicId: string): v
   ).run(topicId);
 }
 
+/** Wipes a topic's mastery progress back to its untouched starting state. */
+export function resetMasteryRecord(db: Database.Database, topicId: string): MasteryRecord {
+  db.prepare(
+    `UPDATE mastery_records
+     SET mastery_score = 0, attempts_count = 0, consecutive_successes = 0, weak_spots = '[]', status = 'not_started', last_updated_at = datetime('now')
+     WHERE topic_id = ?`,
+  ).run(topicId);
+  return getMasteryRecordByTopic(db, topicId) as MasteryRecord;
+}
+
 export interface UpdateMasteryAfterEvaluationInput {
   masteryScore: number;
   attemptsCount: number;

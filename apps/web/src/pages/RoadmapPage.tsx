@@ -1,6 +1,13 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { getRoadmap, startTopic, ApiError } from '../api/client';
+import {
+  getRoadmap,
+  requestAdditionalPractice,
+  resetTopic,
+  startTopic,
+  ApiError,
+} from '../api/client';
 import { TeachMeRequestBox } from '../components/TeachMeRequestBox';
 import { Spinner } from '../components/Spinner';
 
@@ -11,32 +18,105 @@ const STATUS_LABELS: Record<string, string> = {
   mastered: 'Mastered',
 };
 
-function StartTopicButton({ topicId, roadmapStatus }: { topicId: string; roadmapStatus: string }) {
+function TopicActions({ topicId, roadmapStatus }: { topicId: string; roadmapStatus: string }) {
   const navigate = useNavigate();
-  const mutation = useMutation({
+  const queryClient = useQueryClient();
+  const [confirmingReset, setConfirmingReset] = useState(false);
+
+  const startMutation = useMutation({
     mutationFn: () => startTopic(topicId),
     onSuccess: (result) => navigate(`/sessions/${result.session.id}`),
   });
 
-  if (roadmapStatus !== 'available' && roadmapStatus !== 'in_progress') return null;
+  const practiceMutation = useMutation({
+    mutationFn: () => requestAdditionalPractice(topicId),
+    onSuccess: (result) => navigate(`/sessions/${result.session.id}`),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: () => resetTopic(topicId),
+    onSuccess: async () => {
+      setConfirmingReset(false);
+      await queryClient.invalidateQueries({ queryKey: ['roadmap'] });
+    },
+  });
+
+  const canReset = roadmapStatus === 'in_progress' || roadmapStatus === 'mastered';
+
+  if (confirmingReset) {
+    return (
+      <span className="reset-confirm">
+        Reset all progress on this topic?
+        <button
+          type="button"
+          className="btn btn--danger btn--small"
+          onClick={() => resetMutation.mutate()}
+          disabled={resetMutation.isPending}
+        >
+          {resetMutation.isPending ? <Spinner /> : 'Yes, reset'}
+        </button>
+        <button
+          type="button"
+          className="btn btn--secondary btn--small"
+          onClick={() => setConfirmingReset(false)}
+          disabled={resetMutation.isPending}
+        >
+          Cancel
+        </button>
+      </span>
+    );
+  }
 
   return (
-    <button
-      type="button"
-      className="btn btn--primary btn--small"
-      onClick={() => mutation.mutate()}
-      disabled={mutation.isPending}
-    >
-      {mutation.isPending ? (
-        <>
-          <Spinner /> Starting...
-        </>
-      ) : roadmapStatus === 'available' ? (
-        'Start'
-      ) : (
-        'Continue'
+    <div className="topic-row__actions">
+      {(roadmapStatus === 'available' || roadmapStatus === 'in_progress') && (
+        <button
+          type="button"
+          className="btn btn--primary btn--small"
+          onClick={() => startMutation.mutate()}
+          disabled={startMutation.isPending}
+        >
+          {startMutation.isPending ? (
+            <>
+              <Spinner /> Starting...
+            </>
+          ) : roadmapStatus === 'available' ? (
+            'Start'
+          ) : (
+            'Continue'
+          )}
+        </button>
       )}
-    </button>
+
+      {roadmapStatus === 'mastered' && (
+        <button
+          type="button"
+          className="btn btn--secondary btn--small"
+          onClick={() => practiceMutation.mutate()}
+          disabled={practiceMutation.isPending}
+        >
+          {practiceMutation.isPending ? (
+            <>
+              <Spinner /> Preparing...
+            </>
+          ) : (
+            '↑ Practice more'
+          )}
+        </button>
+      )}
+
+      {canReset && (
+        <button type="button" className="link-button" onClick={() => setConfirmingReset(true)}>
+          Reset
+        </button>
+      )}
+
+      {(practiceMutation.isError || resetMutation.isError) && (
+        <span className="chat-empty">
+          {((practiceMutation.error ?? resetMutation.error) as Error).message}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -94,32 +174,34 @@ export function RoadmapPage() {
           <ul className="topic-list">
             {track.topics.map((topic) => (
               <li className="topic-row" key={topic.topicId}>
-                <div className="topic-row__main">
-                  <div className="topic-row__title">{topic.title}</div>
-                  <div className="topic-row__meta">
-                    <span className={`badge badge--${topic.roadmapStatus}`}>
-                      {STATUS_LABELS[topic.roadmapStatus]}
-                    </span>
-                    <span>{Math.round(topic.masteryScore * 100)}% mastery</span>
+                <div className="topic-row__top">
+                  <div className="topic-row__main">
+                    <div className="topic-row__title">{topic.title}</div>
+                    <div className="topic-row__meta">
+                      <span className={`badge badge--${topic.roadmapStatus}`}>
+                        {STATUS_LABELS[topic.roadmapStatus]}
+                      </span>
+                      <span>{Math.round(topic.masteryScore * 100)}% mastery</span>
+                    </div>
                   </div>
-                </div>
-                <div className="topic-row__mastery">
-                  <div className="progress">
-                    <div
-                      className="progress__bar"
-                      style={{
-                        width: `${Math.round(topic.masteryScore * 100)}%`,
-                        background:
-                          topic.masteryScore >= 0.8
-                            ? 'var(--color-success)'
-                            : topic.masteryScore >= 0.5
-                              ? 'var(--color-warning)'
-                              : 'var(--color-danger)',
-                      }}
-                    />
+                  <div className="topic-row__mastery">
+                    <div className="progress">
+                      <div
+                        className="progress__bar"
+                        style={{
+                          width: `${Math.round(topic.masteryScore * 100)}%`,
+                          background:
+                            topic.masteryScore >= 0.8
+                              ? 'var(--color-success)'
+                              : topic.masteryScore >= 0.5
+                                ? 'var(--color-warning)'
+                                : 'var(--color-danger)',
+                        }}
+                      />
+                    </div>
                   </div>
+                  <TopicActions topicId={topic.topicId} roadmapStatus={topic.roadmapStatus} />
                 </div>
-                <StartTopicButton topicId={topic.topicId} roadmapStatus={topic.roadmapStatus} />
               </li>
             ))}
           </ul>

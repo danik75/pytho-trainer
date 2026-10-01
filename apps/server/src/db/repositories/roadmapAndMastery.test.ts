@@ -9,6 +9,7 @@ import {
   getRoadmapEntryByTopic,
   markRoadmapEntryInProgress,
   markRoadmapEntryMastered,
+  markRoadmapEntryAvailable,
   unlockNextRoadmapEntry,
 } from './roadmap';
 import {
@@ -16,6 +17,7 @@ import {
   getMasteryRecordByTopic,
   markMasteryInProgress,
   updateMasteryAfterEvaluation,
+  resetMasteryRecord,
 } from './mastery';
 
 function setupTopic(db: ReturnType<typeof createTestDb>) {
@@ -158,6 +160,35 @@ describe('roadmap repository', () => {
 
     expect(getRoadmapEntryByTopic(db, nextTopic.id)?.status).toBe('in_progress');
   });
+
+  it('reopens a mastered entry as available and clears mastered_at', () => {
+    const db = createTestDb();
+    const { curriculum, topic } = setupTopic(db);
+    insertRoadmapEntry(db, { curriculumId: curriculum.id, topicId: topic.id, sequenceIndex: 0 });
+    markRoadmapEntryMastered(db, topic.id);
+
+    const updated = markRoadmapEntryAvailable(db, topic.id);
+
+    expect(updated.status).toBe('available');
+    expect(updated.masteredAt).toBeNull();
+  });
+
+  it('reopening one entry as available does not touch any other entry', () => {
+    const db = createTestDb();
+    const { curriculum, topic, nextTopic } = setupTwoTopics(db);
+    insertRoadmapEntry(db, { curriculumId: curriculum.id, topicId: topic.id, sequenceIndex: 0 });
+    insertRoadmapEntry(db, {
+      curriculumId: curriculum.id,
+      topicId: nextTopic.id,
+      sequenceIndex: 1,
+      status: 'available',
+    });
+    markRoadmapEntryMastered(db, topic.id);
+
+    markRoadmapEntryAvailable(db, topic.id);
+
+    expect(getRoadmapEntryByTopic(db, nextTopic.id)?.status).toBe('available');
+  });
 });
 
 describe('mastery repository', () => {
@@ -204,5 +235,26 @@ describe('mastery repository', () => {
     expect(updated.consecutiveSuccesses).toBe(2);
     expect(updated.weakSpots).toEqual(['recursion']);
     expect(updated.status).toBe('mastered');
+  });
+
+  it('resets mastery progress back to not_started', () => {
+    const db = createTestDb();
+    const { topic } = setupTopic(db);
+    insertMasteryRecord(db, topic.id);
+    updateMasteryAfterEvaluation(db, topic.id, {
+      masteryScore: 0.9,
+      attemptsCount: 4,
+      consecutiveSuccesses: 3,
+      weakSpots: ['off-by-one'],
+      status: 'mastered',
+    });
+
+    const reset = resetMasteryRecord(db, topic.id);
+
+    expect(reset.masteryScore).toBe(0);
+    expect(reset.attemptsCount).toBe(0);
+    expect(reset.consecutiveSuccesses).toBe(0);
+    expect(reset.weakSpots).toEqual([]);
+    expect(reset.status).toBe('not_started');
   });
 });

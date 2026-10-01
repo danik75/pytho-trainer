@@ -79,6 +79,20 @@ export function markRoadmapEntryMastered(db: Database.Database, topicId: string)
 }
 
 /**
+ * Reopens a topic (in_progress, struggling, or mastered) back to available
+ * so it can be started fresh. Deliberately does not touch any other
+ * roadmap entry - topics already unlocked because this one was mastered
+ * stay unlocked, so resetting one topic never cascades into re-locking
+ * progress made further down the roadmap.
+ */
+export function markRoadmapEntryAvailable(db: Database.Database, topicId: string): RoadmapEntry {
+  db.prepare(
+    "UPDATE roadmap_entries SET status = 'available', mastered_at = NULL WHERE topic_id = ?",
+  ).run(topicId);
+  return getRoadmapEntryByTopic(db, topicId) as RoadmapEntry;
+}
+
+/**
  * Unlocks the next entry in the curriculum's single flat sequence, if it's
  * still locked. Because persistGeneratedCurriculum already lays out
  * sequence_index as Foundations-then-domain-tracks-in-order, "next by

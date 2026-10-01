@@ -7,6 +7,7 @@ import type {
   LearningOverview,
   MasteryRecord,
   QuestionType,
+  RoadmapEntry,
   RoadmapView,
   SessionDecision,
   StudySession,
@@ -91,6 +92,19 @@ export interface StartTopicResult {
 
 export function startTopic(topicId: string): Promise<StartTopicResult> {
   return request<StartTopicResult>(`/api/topics/${topicId}/start`, { method: 'POST' });
+}
+
+export function requestAdditionalPractice(topicId: string): Promise<StartTopicResult> {
+  return request<StartTopicResult>(`/api/topics/${topicId}/practice`, { method: 'POST' });
+}
+
+export interface ResetTopicResult {
+  mastery: MasteryRecord;
+  roadmapEntry: RoadmapEntry;
+}
+
+export function resetTopic(topicId: string): Promise<ResetTopicResult> {
+  return request<ResetTopicResult>(`/api/topics/${topicId}/reset`, { method: 'POST' });
 }
 
 export function getSession(sessionId: string): Promise<StudySession> {

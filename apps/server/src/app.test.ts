@@ -278,6 +278,107 @@ describe('app routes', () => {
       expect(currentExerciseResponse.json().id).toBe(exercise.id);
     });
 
+    it('POST /api/topics/:topicId/reset returns 409 for a topic that has not been started yet', async () => {
+      const { app } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/reset`,
+      });
+      expect(response.statusCode).toBe(409);
+    });
+
+    it('POST /api/topics/:topicId/practice returns 409 for a topic that is not mastered', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      await app.inject({ method: 'POST', url: `/api/topics/${availableTopicId}/start` });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/practice`,
+      });
+      expect(response.statusCode).toBe(409);
+    });
+
+    it('lets a mastered topic request extra practice, then be reset back to available', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const startResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/start`,
+      });
+      let exercise = startResponse.json().exercise;
+
+      mockExeca.mockResolvedValue({
+        stdout:
+          '##RESULTS##' +
+          JSON.stringify({
+            stdout: '',
+            stderr: '',
+            testResults: [{ name: 'adds two numbers', passed: true }],
+          }),
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      // Two correct submissions in a row cross the mastery threshold.
+      aiClient.enqueue(SAMPLE_EVALUATION);
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const first = await app.inject({
+        method: 'POST',
+        url: `/api/exercises/${exercise.id}/submit`,
+        payload: { code: 'def add(a, b):\n    return a + b\n' },
+      });
+      exercise = first.json().nextExercise;
+
+      aiClient.enqueue(SAMPLE_EVALUATION);
+      const second = await app.inject({
+        method: 'POST',
+        url: `/api/exercises/${exercise.id}/submit`,
+        payload: { code: 'def add(a, b):\n    return a + b\n' },
+      });
+      expect(second.json().decision).toBe('advance_topic');
+
+      const roadmapAfterMastery = (await app.inject({ method: 'GET', url: '/api/roadmap' })).json();
+      expect(roadmapAfterMastery.tracks[0].topics[0].roadmapStatus).toBe('mastered');
+
+      const tougherExercise = {
+        ...SAMPLE_EXERCISE,
+        prompt: 'A harder follow-up exercise.',
+        difficulty: 'advanced' as const,
+      };
+      aiClient.enqueue(tougherExercise);
+      const practiceResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/practice`,
+      });
+      expect(practiceResponse.statusCode).toBe(201);
+      expect(practiceResponse.json().exercise.prompt).toBe('A harder follow-up exercise.');
+
+      const roadmapAfterPractice = (
+        await app.inject({ method: 'GET', url: '/api/roadmap' })
+      ).json();
+      expect(roadmapAfterPractice.tracks[0].topics[0].roadmapStatus).toBe('mastered');
+
+      const resetResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/reset`,
+      });
+      expect(resetResponse.statusCode).toBe(200);
+      expect(resetResponse.json().mastery.status).toBe('not_started');
+      expect(resetResponse.json().roadmapEntry.status).toBe('available');
+
+      const roadmapAfterReset = (await app.inject({ method: 'GET', url: '/api/roadmap' })).json();
+      expect(roadmapAfterReset.tracks[0].topics[0].roadmapStatus).toBe('available');
+      expect(roadmapAfterReset.tracks[0].topics[0].masteryScore).toBe(0);
+    });
+
     it('GET /api/sessions/:sessionId returns 404 for an unknown session', async () => {
       const { app } = buildTestApp();
       const response = await app.inject({ method: 'GET', url: '/api/sessions/missing' });

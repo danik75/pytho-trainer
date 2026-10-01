@@ -50,6 +50,10 @@ export interface ExerciseGenerationInput {
   difficulty: Difficulty;
   weakSpots: string[];
   recentExercisePrompts: string[];
+  /** The student already mastered this topic and is explicitly asking for a
+   * harder exercise to push their mastery further, rather than this being
+   * their normal progression through the topic. */
+  stretch?: boolean;
 }
 
 export const EXERCISE_SYSTEM_PROMPT = `You are an expert Python instructor generating a single coding exercise for a student studying a specific topic.
@@ -63,6 +67,10 @@ Rules:
 - conceptsMd must teach, in markdown, every piece of Python syntax and every concept the student needs in order to solve this specific exercise, written for someone who may never have seen it before - do not assume they already know it just because the topic is "core" or "advanced". Include short code examples of the relevant syntax (not the exercise's own solution). This is read before the student attempts the exercise, so it must stand on its own.`;
 
 export function buildExerciseUserMessage(input: ExerciseGenerationInput): string {
+  const stretchNote = input.stretch
+    ? '\nThe student has already mastered this topic at the target difficulty and explicitly asked for a tougher challenge to push their mastery further. Make this exercise noticeably harder than a normal exercise for this topic - combine concepts, probe edge cases, or require a more elegant/efficient solution than a first-pass attempt would use.'
+    : '';
+
   return `Topic: ${input.topicTitle}
 Description: ${input.topicDescription}
 Learning objectives: ${input.learningObjectives.join('; ')}
@@ -70,7 +78,7 @@ Target difficulty: ${input.difficulty}
 Known weak spots to target: ${input.weakSpots.length > 0 ? input.weakSpots.join(', ') : '(none yet)'}
 Exercises already given for this topic (do not repeat): ${
     input.recentExercisePrompts.length > 0 ? input.recentExercisePrompts.join(' | ') : '(none yet)'
-  }
+  }${stretchNote}
 
 Generate the next exercise now.`;
 }
