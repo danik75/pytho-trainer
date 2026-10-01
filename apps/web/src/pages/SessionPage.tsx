@@ -66,7 +66,7 @@ function DecisionOutcome({
   return null;
 }
 
-type ExercisePageTab = 'exercise' | 'code';
+type ExercisePageTab = 'exercise' | 'code' | 'results';
 
 interface ExerciseDraft {
   code: string;
@@ -139,6 +139,7 @@ function ExerciseSession({
 
   const runMutation = useMutation({
     mutationFn: () => runExerciseCode(exercise!.id, code),
+    onSettled: () => setActiveTab('results'),
   });
 
   const mutation = useMutation({
@@ -151,6 +152,7 @@ function ExerciseSession({
         clearExerciseDraft(exercise.id);
       }
     },
+    onSettled: () => setActiveTab('results'),
   });
 
   function handleContinueToNextExercise() {
@@ -186,6 +188,13 @@ function ExerciseSession({
               onClick={() => setActiveTab('code')}
             >
               Code
+            </button>
+            <button
+              type="button"
+              className={activeTab === 'results' ? 'page-tab page-tab--active' : 'page-tab'}
+              onClick={() => setActiveTab('results')}
+            >
+              Results
             </button>
           </div>
 
@@ -240,11 +249,24 @@ function ExerciseSession({
                 {mutation.isPending && (
                   <p className="loading-hint">
                     <Spinner /> Running your code and asking the AI to evaluate it - this can take
-                    up to 30 seconds.
+                    up to 30 seconds. Switching to the Results tab when it&apos;s done.
                   </p>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'results' && (
+              <div>
+                {!runMutation.data &&
+                  !mutation.data &&
+                  !runMutation.isError &&
+                  !mutation.isError && (
+                    <p className="chat-empty">
+                      Nothing here yet - hit Run or Submit on the Code tab.
+                    </p>
+                  )}
                 {runMutation.isError && (
-                  <div className="alert alert--error alert--after-action" role="alert">
+                  <div className="alert alert--error" role="alert">
                     {(runMutation.error as Error).message}
                   </div>
                 )}
@@ -255,7 +277,7 @@ function ExerciseSession({
                   </div>
                 )}
                 {mutation.isError && (
-                  <div className="alert alert--error alert--after-action" role="alert">
+                  <div className="alert alert--error" role="alert">
                     {(mutation.error as Error).message}
                   </div>
                 )}

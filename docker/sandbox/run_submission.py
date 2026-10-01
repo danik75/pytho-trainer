@@ -11,11 +11,27 @@ test's target function, and prints one final line prefixed with
 import contextlib
 import io
 import json
+import sys
 import traceback
 
 SOLUTION_PATH = "/workspace/solution.py"
 TESTS_PATH = "/workspace/tests.json"
 RESULTS_PREFIX = "##RESULTS##"
+# The filename exec() is compiled with (see main()) - used to trim this
+# harness's own frames out of any traceback shown to the student.
+SOLUTION_FILENAME = "solution.py"
+
+
+def format_user_exception():
+    """Formats the exception currently being handled, trimmed to start at the
+    student's own code. Without this, every traceback would open with this
+    harness's internal call site (e.g. "run_submission.py, line N, in
+    run_tests: actual = func(*args)"), which is never actionable for the
+    student and only obscures the actual bug in their code."""
+    exc_type, exc, tb = sys.exc_info()
+    while tb is not None and tb.tb_frame.f_code.co_filename != SOLUTION_FILENAME:
+        tb = tb.tb_next
+    return "".join(traceback.format_exception(exc_type, exc, tb))
 
 
 def run_tests(namespace, tests, stdout_buffer, stderr_buffer):
@@ -43,7 +59,7 @@ def run_tests(namespace, tests, stdout_buffer, stderr_buffer):
                     {"name": name, "passed": False, "details": f"Expected {expected!r}, got {actual!r}"}
                 )
         except Exception:
-            results.append({"name": name, "passed": False, "details": traceback.format_exc()})
+            results.append({"name": name, "passed": False, "details": format_user_exception()})
     return results
 
 
@@ -62,7 +78,7 @@ def main():
         with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
             exec(compile(code, "solution.py", "exec"), namespace)
     except Exception:
-        exec_error = traceback.format_exc()
+        exec_error = format_user_exception()
 
     if exec_error is None:
         results = run_tests(namespace, tests, stdout_buffer, stderr_buffer)
