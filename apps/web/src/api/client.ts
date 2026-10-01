@@ -182,6 +182,12 @@ export function askExerciseHelp(
   });
 }
 
+export function clearExerciseHelp(exerciseId: string): Promise<ExerciseHelpMessage[]> {
+  return request<ExerciseHelpMessage[]>(`/api/exercises/${exerciseId}/help`, {
+    method: 'DELETE',
+  });
+}
+
 export function analyzeExecutionResult(
   exerciseId: string,
   code: string,

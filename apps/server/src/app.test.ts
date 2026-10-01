@@ -604,6 +604,19 @@ describe('app routes', () => {
         url: `/api/exercises/${exercise.id}/help`,
       });
       expect(historyResponse.json()).toHaveLength(2);
+
+      const clearResponse = await app.inject({
+        method: 'DELETE',
+        url: `/api/exercises/${exercise.id}/help`,
+      });
+      expect(clearResponse.statusCode).toBe(200);
+      expect(clearResponse.json()).toEqual([]);
+
+      const historyAfterClear = await app.inject({
+        method: 'GET',
+        url: `/api/exercises/${exercise.id}/help`,
+      });
+      expect(historyAfterClear.json()).toEqual([]);
     });
 
     it('POST /api/exercises/:exerciseId/help returns 404 for an unknown exercise', async () => {

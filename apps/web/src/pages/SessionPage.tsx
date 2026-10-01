@@ -8,6 +8,7 @@ import {
   getExamQuestions,
   getExerciseAttempts,
   getSession,
+  getTopic,
   runExerciseCode,
   submitExamAnswers,
   submitExerciseCode,
@@ -21,6 +22,7 @@ import { EvaluationFeedback } from '../components/EvaluationFeedback';
 import { ExamForm } from '../components/ExamForm';
 import { TutorSidebar } from '../components/TutorSidebar';
 import { SandboxPanel } from '../components/SandboxPanel';
+import { MasteryScoreBar } from '../components/MasteryScoreBar';
 import { Spinner } from '../components/Spinner';
 
 function DecisionOutcome({
@@ -119,11 +121,47 @@ function clearExerciseDraft(exerciseId: string): void {
   }
 }
 
+const MASTERY_STATUS_LABELS: Record<string, string> = {
+  not_started: 'Not started',
+  in_progress: 'In progress',
+  mastered: 'Mastered',
+  struggling: 'Struggling',
+};
+
+// Shared by both session types so a student always knows what topic they're
+// in and how far along they are, without having to go back to the roadmap.
+function SessionTitleHeader({ topicId }: { topicId: string }) {
+  const { data } = useQuery({
+    queryKey: ['topic', topicId],
+    queryFn: () => getTopic(topicId),
+  });
+
+  if (!data) return null;
+
+  return (
+    <div className="session-title">
+      <h2>{data.topic.title}</h2>
+      {data.mastery && (
+        <div className="session-title__progress">
+          <MasteryScoreBar score={data.mastery.masteryScore} />
+          <span className="session-title__progress-label">
+            {Math.round(data.mastery.masteryScore * 100)}% mastery ·{' '}
+            {MASTERY_STATUS_LABELS[data.mastery.status] ?? data.mastery.status} ·{' '}
+            {data.mastery.attemptsCount} attempt{data.mastery.attemptsCount === 1 ? '' : 's'}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExerciseSession({
   sessionId,
+  topicId,
   explanationMd,
 }: {
   sessionId: string;
+  topicId: string;
   explanationMd: string;
 }) {
   const queryClient = useQueryClient();
@@ -201,6 +239,7 @@ function ExerciseSession({
 
   return (
     <div className="page page--wide session-page">
+      <SessionTitleHeader topicId={topicId} />
       <div className="session-layout">
         <div className="card session-panel">
           <div className="page-tabs">
@@ -438,9 +477,11 @@ function ExerciseSession({
 
 function TheorySessionView({
   sessionId,
+  topicId,
   explanationMd,
 }: {
   sessionId: string;
+  topicId: string;
   explanationMd: string;
 }) {
   const { data: questions, isLoading } = useQuery({
@@ -456,6 +497,7 @@ function TheorySessionView({
 
   return (
     <div className="page">
+      <SessionTitleHeader topicId={topicId} />
       {explanationMd && (
         <div className="card session-block">
           <ExplanationView markdown={explanationMd} />
@@ -538,8 +580,16 @@ export function SessionPage() {
   if (!session || !sessionId) return null;
 
   return session.sessionType === 'exercise' ? (
-    <ExerciseSession sessionId={sessionId} explanationMd={session.explanationMd} />
+    <ExerciseSession
+      sessionId={sessionId}
+      topicId={session.topicId}
+      explanationMd={session.explanationMd}
+    />
   ) : (
-    <TheorySessionView sessionId={sessionId} explanationMd={session.explanationMd} />
+    <TheorySessionView
+      sessionId={sessionId}
+      topicId={session.topicId}
+      explanationMd={session.explanationMd}
+    />
   );
 }

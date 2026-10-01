@@ -303,6 +303,31 @@ pre {
   flex-shrink: 0;
 }
 
+.session-title {
+  flex-shrink: 0;
+  margin-bottom: var(--space-4);
+}
+
+.session-title h2 {
+  margin: 0 0 var(--space-2);
+}
+
+.session-title__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.session-title__progress .progress {
+  max-width: 220px;
+}
+
+.session-title__progress-label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Page header                                                            */
 /* ---------------------------------------------------------------------- */
@@ -1129,6 +1154,12 @@ legend {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+}
+
+.tutor-sidebar__chat-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
 }
 
 .chat-thread {

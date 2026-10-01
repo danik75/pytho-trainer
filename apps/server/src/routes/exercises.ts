@@ -5,7 +5,10 @@ import { submitExercise } from '../sessions/submitExercise';
 import { runExerciseCode } from '../sessions/runExerciseCode';
 import { askExerciseHelp } from '../sessions/askExerciseHelp';
 import { analyzeResult } from '../sessions/analyzeResult';
-import { listExerciseHelpMessages } from '../db/repositories/exerciseHelp';
+import {
+  clearExerciseHelpMessages,
+  listExerciseHelpMessages,
+} from '../db/repositories/exerciseHelp';
 import { getExercise } from '../db/repositories/exercises';
 import { countFailedSubmissions } from '../db/repositories/submissions';
 import { NotFoundError } from '../errors';
@@ -60,6 +63,12 @@ export function registerExerciseRoutes(
     const { question, code } = askBodySchema.parse(request.body);
     const messages = await askExerciseHelp(db, resolveAiClient(), exerciseId, question, code);
     return reply.status(201).send(messages);
+  });
+
+  app.delete('/api/exercises/:exerciseId/help', async (request) => {
+    const { exerciseId } = paramsSchema.parse(request.params);
+    clearExerciseHelpMessages(db, exerciseId);
+    return [];
   });
 
   app.get('/api/exercises/:exerciseId/attempts', async (request) => {

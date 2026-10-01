@@ -50,3 +50,7 @@ export function listExerciseHelpMessages(
     .all(exerciseId) as ExerciseHelpMessageRow[];
   return rows.map(mapRow);
 }
+
+export function clearExerciseHelpMessages(db: Database.Database, exerciseId: string): void {
+  db.prepare('DELETE FROM exercise_help_messages WHERE exercise_id = ?').run(exerciseId);
+}

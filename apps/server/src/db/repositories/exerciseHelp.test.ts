@@ -5,7 +5,11 @@ import { insertTrack } from './tracks';
 import { insertTopic } from './topics';
 import { insertStudySession } from './sessions';
 import { insertExercise } from './exercises';
-import { insertExerciseHelpMessage, listExerciseHelpMessages } from './exerciseHelp';
+import {
+  clearExerciseHelpMessages,
+  insertExerciseHelpMessage,
+  listExerciseHelpMessages,
+} from './exerciseHelp';
 
 function setupExercise(db: ReturnType<typeof createTestDb>) {
   ensureLocalUser(db);
@@ -85,5 +89,19 @@ describe('exercise_help_messages repository', () => {
 
     expect(listExerciseHelpMessages(db, exerciseA.id)).toHaveLength(1);
     expect(listExerciseHelpMessages(db, exerciseB.id)).toEqual([]);
+  });
+
+  it("clears only the given exercise's messages", () => {
+    const db = createTestDb();
+    const exerciseA = setupExercise(db);
+    const exerciseB = setupExercise(db);
+
+    insertExerciseHelpMessage(db, { exerciseId: exerciseA.id, role: 'user', content: 'A' });
+    insertExerciseHelpMessage(db, { exerciseId: exerciseB.id, role: 'user', content: 'B' });
+
+    clearExerciseHelpMessages(db, exerciseA.id);
+
+    expect(listExerciseHelpMessages(db, exerciseA.id)).toEqual([]);
+    expect(listExerciseHelpMessages(db, exerciseB.id)).toHaveLength(1);
   });
 });

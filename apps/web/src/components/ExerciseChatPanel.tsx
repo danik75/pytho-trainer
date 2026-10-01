@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Exercise } from '@pytho-trainer/shared';
-import { askExerciseHelp, getExerciseHelp } from '../api/client';
+import { askExerciseHelp, clearExerciseHelp, getExerciseHelp } from '../api/client';
 import { ExplanationView } from './ExplanationView';
 import { Spinner } from './Spinner';
 
@@ -12,6 +12,7 @@ interface ExerciseChatPanelProps {
 
 export function ExerciseChatPanel({ exercise, code }: ExerciseChatPanelProps) {
   const [question, setQuestion] = useState('');
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: messages } = useQuery({
@@ -27,6 +28,14 @@ export function ExerciseChatPanel({ exercise, code }: ExerciseChatPanelProps) {
     },
   });
 
+  const clearMutation = useMutation({
+    mutationFn: () => clearExerciseHelp(exercise.id),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['exerciseHelp', exercise.id], updated);
+      setConfirmingClear(false);
+    },
+  });
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (question.trim()) mutation.mutate();
@@ -34,6 +43,35 @@ export function ExerciseChatPanel({ exercise, code }: ExerciseChatPanelProps) {
 
   return (
     <div className="tutor-sidebar__chat">
+      {Boolean(messages?.length) && (
+        <div className="tutor-sidebar__chat-header">
+          {confirmingClear ? (
+            <span className="reset-confirm">
+              Clear this chat?
+              <button
+                type="button"
+                className="btn btn--danger btn--small"
+                onClick={() => clearMutation.mutate()}
+                disabled={clearMutation.isPending}
+              >
+                {clearMutation.isPending ? <Spinner /> : 'Yes, clear'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary btn--small"
+                onClick={() => setConfirmingClear(false)}
+                disabled={clearMutation.isPending}
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button type="button" className="link-button" onClick={() => setConfirmingClear(true)}>
+              Clear chat
+            </button>
+          )}
+        </div>
+      )}
       <div className="chat-thread">
         {messages?.length ? (
           messages.map((message) => (
