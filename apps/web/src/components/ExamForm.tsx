@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ClientExamQuestion } from '../api/client';
+import { Spinner } from './Spinner';
 
 interface ExamFormProps {
   questions: ClientExamQuestion[];
@@ -53,7 +54,13 @@ export function ExamForm({ questions, onSubmit, disabled }: ExamFormProps) {
         </fieldset>
       ))}
       <button type="submit" className="btn btn--primary" disabled={disabled}>
-        {disabled ? 'Grading...' : 'Submit answers'}
+        {disabled ? (
+          <>
+            <Spinner /> Grading...
+          </>
+        ) : (
+          'Submit answers'
+        )}
       </button>
     </form>
   );

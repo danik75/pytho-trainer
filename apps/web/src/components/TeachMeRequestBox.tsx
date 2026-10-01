@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { teachOnDemand } from '../api/client';
+import { Spinner } from './Spinner';
 
 export function TeachMeRequestBox() {
   const navigate = useNavigate();
@@ -37,9 +38,20 @@ export function TeachMeRequestBox() {
             className="btn btn--primary"
             disabled={mutation.isPending || !topic.trim()}
           >
-            {mutation.isPending ? 'Preparing...' : 'Teach me'}
+            {mutation.isPending ? (
+              <>
+                <Spinner /> Preparing...
+              </>
+            ) : (
+              'Teach me'
+            )}
           </button>
         </div>
+        {mutation.isPending && (
+          <p className="loading-hint">
+            <Spinner /> Writing a lesson and quiz - this can take up to 30 seconds.
+          </p>
+        )}
       </div>
       {mutation.isError && (
         <div className="alert alert--error" role="alert">

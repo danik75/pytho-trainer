@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DOMAIN_CATALOG, type DomainCatalogEntry } from '@pytho-trainer/shared';
 import { getDomainCatalog, submitOnboarding, createCurriculum } from '../api/client';
+import { Spinner } from '../components/Spinner';
 
 const SELF_ASSESSED_LEVELS = [
   { value: 'beginner', label: 'Beginner - little or no programming experience' },
@@ -175,8 +176,21 @@ export function OnboardingPage() {
             className="btn btn--primary btn--block"
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? 'Generating your curriculum...' : 'Generate my curriculum'}
+            {mutation.isPending ? (
+              <>
+                <Spinner /> Generating your curriculum...
+              </>
+            ) : (
+              'Generate my curriculum'
+            )}
           </button>
+
+          {mutation.isPending && (
+            <p className="loading-hint">
+              <Spinner /> The AI is designing your personalized curriculum - this can take up to a
+              minute.
+            </p>
+          )}
 
           {mutation.isError && (
             <div className="alert alert--error alert--after-action" role="alert">

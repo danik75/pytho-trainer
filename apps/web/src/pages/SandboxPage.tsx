@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { runSandboxCode } from '../api/client';
 import { CodeEditor } from '../components/CodeEditor';
 import { ExecutionResultPanel } from '../components/ExecutionResultPanel';
+import { Spinner } from '../components/Spinner';
 
 const STARTER_CODE = `# Try anything here - it runs in the same sandbox as exercises, with no
 # grading and nothing saved. Write some code and hit Run.
@@ -32,7 +33,13 @@ export function SandboxPage() {
               disabled={mutation.isPending}
               onClick={() => mutation.mutate()}
             >
-              {mutation.isPending ? 'Running...' : '▶ Run'}
+              {mutation.isPending ? (
+                <>
+                  <Spinner /> Running...
+                </>
+              ) : (
+                '▶ Run'
+              )}
             </button>
           </div>
           {mutation.isError && (

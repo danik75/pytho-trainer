@@ -4,6 +4,7 @@ import { ExplanationView } from '../components/ExplanationView';
 import { MasteryScoreBar } from '../components/MasteryScoreBar';
 import { DifficultiesPanel } from '../components/DifficultiesPanel';
 import { NextStepsPanel } from '../components/NextStepsPanel';
+import { Spinner } from '../components/Spinner';
 
 export function LearningOverviewPage() {
   const queryClient = useQueryClient();
@@ -45,7 +46,13 @@ export function LearningOverviewPage() {
             onClick={() => refreshMutation.mutate()}
             disabled={refreshMutation.isPending}
           >
-            {refreshMutation.isPending ? 'Refreshing...' : 'Refresh summary'}
+            {refreshMutation.isPending ? (
+              <>
+                <Spinner /> Refreshing...
+              </>
+            ) : (
+              'Refresh summary'
+            )}
           </button>
         </div>
         {overview.narrativeMd ? (

@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRoadmap, startTopic, ApiError } from '../api/client';
 import { TeachMeRequestBox } from '../components/TeachMeRequestBox';
+import { Spinner } from '../components/Spinner';
 
 const STATUS_LABELS: Record<string, string> = {
   locked: 'Locked',
@@ -26,7 +27,15 @@ function StartTopicButton({ topicId, roadmapStatus }: { topicId: string; roadmap
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
     >
-      {mutation.isPending ? 'Starting...' : roadmapStatus === 'available' ? 'Start' : 'Continue'}
+      {mutation.isPending ? (
+        <>
+          <Spinner /> Starting...
+        </>
+      ) : roadmapStatus === 'available' ? (
+        'Start'
+      ) : (
+        'Continue'
+      )}
     </button>
   );
 }

@@ -18,6 +18,7 @@ import { ExecutionResultPanel } from '../components/ExecutionResultPanel';
 import { EvaluationFeedback } from '../components/EvaluationFeedback';
 import { ExamForm } from '../components/ExamForm';
 import { TutorSidebar } from '../components/TutorSidebar';
+import { Spinner } from '../components/Spinner';
 
 function DecisionOutcome({
   decision,
@@ -157,7 +158,13 @@ function ExerciseSession({
                     disabled={runMutation.isPending || mutation.isPending}
                     onClick={() => runMutation.mutate()}
                   >
-                    {runMutation.isPending ? 'Running...' : '▶ Run'}
+                    {runMutation.isPending ? (
+                      <>
+                        <Spinner /> Running...
+                      </>
+                    ) : (
+                      '▶ Run'
+                    )}
                   </button>
                   <button
                     type="button"
@@ -165,9 +172,21 @@ function ExerciseSession({
                     disabled={mutation.isPending}
                     onClick={() => mutation.mutate()}
                   >
-                    {mutation.isPending ? 'Submitting...' : 'Submit'}
+                    {mutation.isPending ? (
+                      <>
+                        <Spinner /> Submitting...
+                      </>
+                    ) : (
+                      'Submit'
+                    )}
                   </button>
                 </div>
+                {mutation.isPending && (
+                  <p className="loading-hint">
+                    <Spinner /> Running your code and asking the AI to evaluate it - this can take
+                    up to 30 seconds.
+                  </p>
+                )}
                 {runMutation.isError && (
                   <div className="alert alert--error alert--after-action" role="alert">
                     {(runMutation.error as Error).message}
@@ -246,6 +265,11 @@ function TheorySessionView({
             disabled={mutation.isPending}
             onSubmit={(answers) => mutation.mutate(answers)}
           />
+        )}
+        {mutation.isPending && (
+          <p className="loading-hint">
+            <Spinner /> Grading your answers - this can take up to 30 seconds.
+          </p>
         )}
         {mutation.isError && (
           <div className="alert alert--error alert--after-action" role="alert">

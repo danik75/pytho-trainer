@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Exercise } from '@pytho-trainer/shared';
 import { askExerciseHelp, getExerciseHelp } from '../api/client';
 import { ExplanationView } from './ExplanationView';
+import { Spinner } from './Spinner';
 
 interface ExerciseChatPanelProps {
   exercise: Exercise;
@@ -47,7 +48,7 @@ export function ExerciseChatPanel({ exercise, code }: ExerciseChatPanelProps) {
         )}
         {mutation.isPending && (
           <div className="chat-message chat-message--assistant chat-message--pending">
-            Thinking...
+            <Spinner /> Thinking...
           </div>
         )}
       </div>
