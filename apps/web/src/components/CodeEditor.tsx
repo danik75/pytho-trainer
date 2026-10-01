@@ -4,15 +4,16 @@ import { useTheme } from '../theme/ThemeContext';
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
+  height?: string;
 }
 
-export function CodeEditor({ value, onChange }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, height = '480px' }: CodeEditorProps) {
   const { theme } = useTheme();
 
   return (
     <div className="editor-frame">
       <Editor
-        height="480px"
+        height={height}
         language="python"
         theme={theme === 'dark' ? 'vs-dark' : 'light'}
         value={value}

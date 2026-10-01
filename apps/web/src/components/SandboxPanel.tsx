@@ -35,7 +35,15 @@ function saveSandboxDraft(code: string): void {
   }
 }
 
-export function SandboxPanel() {
+interface SandboxPanelProps {
+  // Shorter when embedded inside an exercise session's tab, where the
+  // editor shares vertical space with the page's tab bar instead of a
+  // whole dedicated page - keeps the Run button from being pushed below
+  // the fold.
+  editorHeight?: string;
+}
+
+export function SandboxPanel({ editorHeight }: SandboxPanelProps = {}) {
   const [code, setCode] = useState(loadSandboxDraft);
   const [showResults, setShowResults] = useState(false);
 
@@ -50,7 +58,7 @@ export function SandboxPanel() {
 
   return (
     <div>
-      <CodeEditor value={code} onChange={setCode} />
+      <CodeEditor value={code} onChange={setCode} height={editorHeight} />
       <div className="button-row">
         <button
           type="button"

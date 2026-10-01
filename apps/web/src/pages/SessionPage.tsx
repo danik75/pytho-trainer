@@ -266,11 +266,11 @@ function ExerciseSession({
 
             {activeTab === 'sandbox' && (
               <div>
-                <p className="loading-hint">
-                  A separate scratch space to try out syntax or experiment - it doesn&apos;t touch
-                  your exercise code above, and nothing here is graded.
+                <p className="chat-hint">
+                  A separate scratch space - doesn&apos;t touch your exercise code, nothing here is
+                  graded.
                 </p>
-                <SandboxPanel />
+                <SandboxPanel editorHeight="360px" />
               </div>
             )}
 
