@@ -902,6 +902,24 @@ legend {
   color: var(--color-danger);
 }
 
+.test-result--neutral {
+  background: var(--color-neutral-soft);
+  color: var(--color-text);
+}
+
+.test-result--block {
+  display: block;
+}
+
+.test-result--block .code-block {
+  margin: var(--space-2) 0;
+}
+
+.test-result__outcome {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
 .code-block {
   background: var(--code-bg);
   color: var(--code-text);

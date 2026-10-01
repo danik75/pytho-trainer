@@ -68,6 +68,8 @@ const SAMPLE_EXERCISE: ExerciseGeneration = {
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds two numbers', functionName: 'add', args: [2, 3], expected: 5 }],
+  solutionCode: 'def add(a, b):\n    return a + b\n',
+  solutionExplanationMd: 'Add the two parameters with `+` and return the result.',
 };
 
 const SAMPLE_EVALUATION: SubmissionEvaluationGeneration = {
@@ -436,6 +438,72 @@ describe('app routes', () => {
       expect(result.decision).toBe('next_exercise');
       expect(result.nextExercise.prompt).toBe(SAMPLE_EXERCISE.prompt);
       expect(result.masteryRecord.attemptsCount).toBe(1);
+    });
+
+    it('GET /api/exercises/:exerciseId/attempts counts only incorrect submissions', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const startResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/start`,
+      });
+      const { exercise } = startResponse.json();
+
+      const initialAttempts = await app.inject({
+        method: 'GET',
+        url: `/api/exercises/${exercise.id}/attempts`,
+      });
+      expect(initialAttempts.statusCode).toBe(200);
+      expect(initialAttempts.json()).toEqual({ failedAttempts: 0 });
+
+      mockExeca.mockResolvedValue({
+        stdout:
+          '##RESULTS##' +
+          JSON.stringify({
+            stdout: '',
+            stderr: '',
+            testResults: [{ name: 'adds two numbers', passed: false }],
+          }),
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      const WRONG_EVALUATION = {
+        correct: false,
+        understandingNotes: 'Not quite',
+        feedback: 'Try again',
+        idiomaticFeedback: '',
+        // Above the "bad first attempt" threshold so the mastery engine
+        // generates another exercise (next_exercise) rather than inserting a
+        // theory session, which would need a second queued AI response.
+        suggestedMasteryScore: 0.5,
+        identifiedWeakSpots: ['functions'],
+      };
+      aiClient.enqueue(WRONG_EVALUATION);
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      await app.inject({
+        method: 'POST',
+        url: `/api/exercises/${exercise.id}/submit`,
+        payload: { code: 'def add(a, b):\n    return a - b\n' },
+      });
+
+      const afterOneFailure = await app.inject({
+        method: 'GET',
+        url: `/api/exercises/${exercise.id}/attempts`,
+      });
+      expect(afterOneFailure.json()).toEqual({ failedAttempts: 1 });
+    });
+
+    it('GET /api/exercises/:exerciseId/attempts returns 404 for an unknown exercise', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/exercises/missing/attempts',
+      });
+      expect(response.statusCode).toBe(404);
     });
 
     it('POST /api/exercises/:exerciseId/submit returns 404 for an unknown exercise', async () => {

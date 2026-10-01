@@ -15,7 +15,7 @@ import {
   getLatestExerciseBySession,
   listExercisesBySession,
 } from './exercises';
-import { insertSubmission } from './submissions';
+import { insertSubmission, countFailedSubmissions } from './submissions';
 
 function setupTopic(db: ReturnType<typeof createTestDb>) {
   ensureLocalUser(db);
@@ -95,13 +95,39 @@ describe('exercises repository', () => {
       difficulty: 'intro',
       targetWeakSpots: [],
       hiddenTests: [{ name: 'adds', functionName: 'add', args: [1, 2], expected: 3 }],
+      solutionCode: 'def add(a, b):\n    return a + b\n',
+      solutionExplanationMd: 'Add the two parameters.',
     });
 
     expect(exercise.hiddenTests).toHaveLength(1);
+    expect(exercise.solutionCode).toBe('def add(a, b):\n    return a + b\n');
+    expect(exercise.solutionExplanationMd).toBe('Add the two parameters.');
     expect(getExercise(db, exercise.id)?.prompt).toBe('Write add(a, b)');
     expect(getExercise(db, 'missing')).toBeNull();
     expect(getLatestExerciseBySession(db, session.id)?.id).toBe(exercise.id);
     expect(getLatestExerciseBySession(db, 'missing-session')).toBeNull();
+  });
+
+  it('defaults solutionCode and solutionExplanationMd to empty strings when omitted', () => {
+    const db = createTestDb();
+    const topic = setupTopic(db);
+    const session = insertStudySession(db, {
+      topicId: topic.id,
+      sessionType: 'exercise',
+      sessionNumber: 1,
+    });
+
+    const exercise = insertExercise(db, {
+      sessionId: session.id,
+      prompt: 'Write add(a, b)',
+      starterCode: '',
+      difficulty: 'intro',
+      targetWeakSpots: [],
+      hiddenTests: [],
+    });
+
+    expect(exercise.solutionCode).toBe('');
+    expect(exercise.solutionExplanationMd).toBe('');
   });
 
   it('lists exercises for a session in creation order', () => {
@@ -208,5 +234,67 @@ describe('submissions repository', () => {
 
     expect(submission.aiEvaluation).toEqual(evaluation);
     expect(submission.masteryScoreAfter).toBe(0.9);
+  });
+
+  it('counts only incorrect submissions, ignoring ones with no AI evaluation yet', () => {
+    const db = createTestDb();
+    const topic = setupTopic(db);
+    const session = insertStudySession(db, {
+      topicId: topic.id,
+      sessionType: 'exercise',
+      sessionNumber: 1,
+    });
+    const exercise = insertExercise(db, {
+      sessionId: session.id,
+      prompt: 'Write add(a, b)',
+      starterCode: '',
+      difficulty: 'intro',
+      targetWeakSpots: [],
+      hiddenTests: [],
+    });
+
+    expect(countFailedSubmissions(db, exercise.id)).toBe(0);
+
+    insertSubmission(db, {
+      exerciseId: exercise.id,
+      code: 'pass',
+      stdout: '',
+      stderr: '',
+      exitCode: 0,
+      timedOut: false,
+      testResults: [],
+    });
+    expect(countFailedSubmissions(db, exercise.id)).toBe(0);
+
+    const wrongEvaluation = {
+      correct: false,
+      understandingNotes: '',
+      feedback: 'Not quite',
+      idiomaticFeedback: '',
+      suggestedMasteryScore: 0.2,
+      identifiedWeakSpots: ['functions'],
+    };
+    insertSubmission(db, {
+      exerciseId: exercise.id,
+      code: 'def add(a, b):\n    return a - b\n',
+      stdout: '',
+      stderr: '',
+      exitCode: 0,
+      timedOut: false,
+      testResults: [{ name: 'adds', passed: false }],
+      aiEvaluation: wrongEvaluation,
+    });
+    insertSubmission(db, {
+      exerciseId: exercise.id,
+      code: 'def add(a, b):\n    return a - b\n',
+      stdout: '',
+      stderr: '',
+      exitCode: 0,
+      timedOut: false,
+      testResults: [{ name: 'adds', passed: false }],
+      aiEvaluation: wrongEvaluation,
+    });
+
+    expect(countFailedSubmissions(db, exercise.id)).toBe(2);
   });
 });

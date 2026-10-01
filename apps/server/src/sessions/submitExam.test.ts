@@ -91,6 +91,8 @@ const NEXT_EXERCISE: ExerciseGeneration = {
   difficulty: 'core',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'factorial_5', functionName: 'factorial', args: [5], expected: 120 }],
+  solutionCode: 'def factorial(n):\n    return 1 if n <= 1 else n * factorial(n - 1)\n',
+  solutionExplanationMd: 'Base case returns 1; otherwise multiply n by factorial(n - 1).',
 };
 
 const FOLLOWUP_THEORY: TheoryGeneration = {

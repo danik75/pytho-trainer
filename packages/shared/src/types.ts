@@ -108,6 +108,8 @@ export interface Exercise {
   difficulty: Difficulty;
   targetWeakSpots: string[];
   hiddenTests: HiddenTestSpec[];
+  solutionCode: string;
+  solutionExplanationMd: string;
   createdAt: string;
 }
 
@@ -121,11 +123,18 @@ export interface ExerciseHelpMessage {
   createdAt: string;
 }
 
+export interface HiddenTestExpectedError {
+  type: string;
+  message?: string;
+}
+
 export interface HiddenTestSpec {
   name: string;
   functionName: string;
   args: unknown[];
-  expected: unknown;
+  // Exactly one of these is set - a returned value, or a raised exception.
+  expected?: unknown;
+  expectedError?: HiddenTestExpectedError;
 }
 
 export interface Submission {

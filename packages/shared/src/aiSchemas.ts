@@ -30,7 +30,15 @@ export const hiddenTestGenerationSchema = z.object({
   name: z.string().min(1),
   functionName: z.string().min(1),
   args: z.array(z.unknown()),
-  expected: z.unknown(),
+  // Exactly one of these two is set, depending on what correct behavior
+  // looks like for this test - a returned value, or a raised exception.
+  expected: z.unknown().optional(),
+  expectedError: z
+    .object({
+      type: z.string().min(1),
+      message: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const exerciseGenerationSchema = z.object({
@@ -40,6 +48,8 @@ export const exerciseGenerationSchema = z.object({
   difficulty: difficultySchema,
   targetWeakSpots: z.array(z.string()),
   hiddenTests: z.array(hiddenTestGenerationSchema).min(1),
+  solutionCode: z.string().min(1),
+  solutionExplanationMd: z.string().min(1),
 });
 export type ExerciseGeneration = z.infer<typeof exerciseGenerationSchema>;
 

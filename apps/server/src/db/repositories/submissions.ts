@@ -65,3 +65,16 @@ export function insertSubmission(db: Database.Database, input: InsertSubmissionI
   );
   return mapRow(db.prepare('SELECT * FROM submissions WHERE id = ?').get(id) as SubmissionRow);
 }
+
+/** Drives the Solution tab's unlock gate - counts incorrect submissions only
+ * (not timeouts/crashes with no AI evaluation), since what unlocks the
+ * solution is genuinely struggling against the grader, not a sandbox hiccup. */
+export function countFailedSubmissions(db: Database.Database, exerciseId: string): number {
+  const rows = db
+    .prepare('SELECT ai_evaluation FROM submissions WHERE exercise_id = ?')
+    .all(exerciseId) as Pick<SubmissionRow, 'ai_evaluation'>[];
+  return rows.filter((row) => {
+    if (!row.ai_evaluation) return false;
+    return !(JSON.parse(row.ai_evaluation) as SubmissionEvaluation).correct;
+  }).length;
+}

@@ -44,6 +44,8 @@ const NEXT_EXERCISE: ExerciseGeneration = {
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds2', functionName: 'add', args: [1, 1], expected: 2 }],
+  solutionCode: 'def add(a, b):\n    return a + b\n',
+  solutionExplanationMd: 'Add the two parameters with `+` and return the result.',
 };
 
 const THEORY_SESSION: TheoryGeneration = {

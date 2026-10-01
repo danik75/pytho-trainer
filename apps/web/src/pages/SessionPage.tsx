@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import type { Exercise, SessionDecision } from '@pytho-trainer/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Exercise, HiddenTestSpec, SessionDecision } from '@pytho-trainer/shared';
 import {
   ApiError,
   getCurrentExercise,
   getExamQuestions,
+  getExerciseAttempts,
   getSession,
   runExerciseCode,
   submitExamAnswers,
@@ -68,7 +69,19 @@ function DecisionOutcome({
   return null;
 }
 
-type ExercisePageTab = 'exercise' | 'code' | 'sandbox' | 'results';
+type ExercisePageTab = 'exercise' | 'tests' | 'code' | 'sandbox' | 'solution' | 'results';
+
+const SOLUTION_UNLOCK_ATTEMPTS = 3;
+
+function formatTestCase(test: HiddenTestSpec): { call: string; outcome: string } {
+  const call = `${test.functionName}(${test.args.map((arg) => JSON.stringify(arg)).join(', ')})`;
+  const outcome = test.expectedError
+    ? `Raises ${test.expectedError.type}${
+        test.expectedError.message ? `("${test.expectedError.message}")` : ''
+      }`
+    : `Returns ${JSON.stringify(test.expected)}`;
+  return { call, outcome };
+}
 
 interface ExerciseDraft {
   code: string;
@@ -113,6 +126,7 @@ function ExerciseSession({
   sessionId: string;
   explanationMd: string;
 }) {
+  const queryClient = useQueryClient();
   const { data: initialExercise, isLoading } = useQuery({
     queryKey: ['currentExercise', sessionId],
     queryFn: () => getCurrentExercise(sessionId),
@@ -139,6 +153,12 @@ function ExerciseSession({
     }
   }, [exercise, code, activeTab]);
 
+  const attemptsQuery = useQuery({
+    queryKey: ['exerciseAttempts', exercise?.id],
+    queryFn: () => getExerciseAttempts(exercise!.id),
+    enabled: Boolean(exercise),
+  });
+
   const runMutation = useMutation({
     mutationFn: () => runExerciseCode(exercise!.id, code),
     onSettled: () => setActiveTab('results'),
@@ -154,7 +174,14 @@ function ExerciseSession({
         clearExerciseDraft(exercise.id);
       }
     },
-    onSettled: () => setActiveTab('results'),
+    onSettled: () => {
+      setActiveTab('results');
+      // Refreshes the Solution tab's unlock state right after a failed
+      // attempt, instead of waiting for an unrelated refetch.
+      if (exercise) {
+        void queryClient.invalidateQueries({ queryKey: ['exerciseAttempts', exercise.id] });
+      }
+    },
   });
 
   function handleContinueToNextExercise() {
@@ -186,6 +213,13 @@ function ExerciseSession({
             </button>
             <button
               type="button"
+              className={activeTab === 'tests' ? 'page-tab page-tab--active' : 'page-tab'}
+              onClick={() => setActiveTab('tests')}
+            >
+              Tests
+            </button>
+            <button
+              type="button"
               className={activeTab === 'code' ? 'page-tab page-tab--active' : 'page-tab'}
               onClick={() => setActiveTab('code')}
             >
@@ -197,6 +231,13 @@ function ExerciseSession({
               onClick={() => setActiveTab('sandbox')}
             >
               Sandbox
+            </button>
+            <button
+              type="button"
+              className={activeTab === 'solution' ? 'page-tab page-tab--active' : 'page-tab'}
+              onClick={() => setActiveTab('solution')}
+            >
+              Solution
             </button>
             <button
               type="button"
@@ -219,6 +260,34 @@ function ExerciseSession({
                 >
                   Start coding →
                 </button>
+              </div>
+            )}
+
+            {activeTab === 'tests' && (
+              <div>
+                <p className="chat-hint">
+                  Your solution is checked against these exact cases - the same inputs, expected
+                  return value or exception, and function call you&apos;ll see in the Results tab.
+                </p>
+                {exercise.hiddenTests.length > 0 ? (
+                  <ul className="test-result-list">
+                    {exercise.hiddenTests.map((test) => {
+                      const { call, outcome } = formatTestCase(test);
+                      return (
+                        <li
+                          className="test-result test-result--neutral test-result--block"
+                          key={test.name}
+                        >
+                          <strong>{test.name}</strong>
+                          <pre className="code-block">{call}</pre>
+                          <span className="test-result__outcome">{outcome}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="chat-empty">This exercise has no hidden tests.</p>
+                )}
               </div>
             )}
 
@@ -271,6 +340,35 @@ function ExerciseSession({
                   graded.
                 </p>
                 <SandboxPanel editorHeight="360px" />
+              </div>
+            )}
+
+            {activeTab === 'solution' && (
+              <div>
+                {attemptsQuery.isLoading ? (
+                  <p className="loading-state">Loading...</p>
+                ) : (attemptsQuery.data?.failedAttempts ?? 0) >= SOLUTION_UNLOCK_ATTEMPTS ? (
+                  exercise.solutionCode ? (
+                    <div>
+                      <p className="chat-hint">
+                        A reference solution, since you&apos;ve had a few attempts at this one.
+                      </p>
+                      <pre className="code-block">{exercise.solutionCode}</pre>
+                      <ExplanationView markdown={exercise.solutionExplanationMd} />
+                    </div>
+                  ) : (
+                    <p className="chat-empty">
+                      No reference solution was generated for this exercise.
+                    </p>
+                  )
+                ) : (
+                  <div className="alert alert--info">
+                    The solution unlocks after {SOLUTION_UNLOCK_ATTEMPTS} unsuccessful Submit
+                    attempts on this exercise, so you get a real chance to work through it first.
+                    You&apos;re at {attemptsQuery.data?.failedAttempts ?? 0}/
+                    {SOLUTION_UNLOCK_ATTEMPTS}.
+                  </div>
+                )}
               </div>
             )}
 

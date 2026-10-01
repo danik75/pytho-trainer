@@ -19,6 +19,8 @@ const SAMPLE_EXERCISE: ExerciseGeneration = {
   difficulty: 'intro',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'adds', functionName: 'add', args: [2, 3], expected: 5 }],
+  solutionCode: 'def add(a, b):\n    return a + b\n',
+  solutionExplanationMd: 'Add the two parameters with `+` and return the result.',
 };
 
 function setupTopic(

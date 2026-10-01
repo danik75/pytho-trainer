@@ -57,6 +57,8 @@ export async function requestAdditionalPractice(
     difficulty: generation.difficulty,
     targetWeakSpots: generation.targetWeakSpots,
     hiddenTests: generation.hiddenTests,
+    solutionCode: generation.solutionCode,
+    solutionExplanationMd: generation.solutionExplanationMd,
     rawAiResponse: JSON.stringify(generation),
   });
 

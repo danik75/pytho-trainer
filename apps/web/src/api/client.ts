@@ -167,6 +167,10 @@ export function getExerciseHelp(exerciseId: string): Promise<ExerciseHelpMessage
   return request<ExerciseHelpMessage[]>(`/api/exercises/${exerciseId}/help`);
 }
 
+export function getExerciseAttempts(exerciseId: string): Promise<{ failedAttempts: number }> {
+  return request<{ failedAttempts: number }>(`/api/exercises/${exerciseId}/attempts`);
+}
+
 export function askExerciseHelp(
   exerciseId: string,
   question: string,

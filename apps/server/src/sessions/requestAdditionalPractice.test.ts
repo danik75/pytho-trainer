@@ -18,6 +18,8 @@ const SAMPLE_EXERCISE: ExerciseGeneration = {
   difficulty: 'advanced',
   targetWeakSpots: [],
   hiddenTests: [{ name: 'case1', functionName: 'solve', args: [{}], expected: {} }],
+  solutionCode: 'def solve(data):\n    return data\n',
+  solutionExplanationMd: 'Returns the input unchanged.',
 };
 
 function setupTopic(

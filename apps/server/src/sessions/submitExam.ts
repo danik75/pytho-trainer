@@ -156,6 +156,8 @@ export async function submitExam(
         difficulty: nextExerciseGeneration.difficulty,
         targetWeakSpots: nextExerciseGeneration.targetWeakSpots,
         hiddenTests: nextExerciseGeneration.hiddenTests,
+        solutionCode: nextExerciseGeneration.solutionCode,
+        solutionExplanationMd: nextExerciseGeneration.solutionExplanationMd,
         rawAiResponse: JSON.stringify(nextExerciseGeneration),
       });
     }

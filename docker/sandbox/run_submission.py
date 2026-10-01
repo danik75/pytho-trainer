@@ -40,7 +40,7 @@ def run_tests(namespace, tests, stdout_buffer, stderr_buffer):
         name = test.get("name", "unnamed test")
         function_name = test.get("functionName")
         args = test.get("args", [])
-        expected = test.get("expected")
+        expected_error = test.get("expectedError")
 
         func = namespace.get(function_name)
         if not callable(func):
@@ -52,14 +52,44 @@ def run_tests(namespace, tests, stdout_buffer, stderr_buffer):
         try:
             with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
                 actual = func(*args)
-            if actual == expected:
-                results.append({"name": name, "passed": True})
+        except Exception as exc:
+            if expected_error:
+                expected_type = expected_error.get("type")
+                expected_message = expected_error.get("message")
+                type_matches = type(exc).__name__ == expected_type
+                message_matches = expected_message is None or str(exc) == expected_message
+                if type_matches and message_matches:
+                    results.append({"name": name, "passed": True})
+                else:
+                    want = f"{expected_type}({expected_message!r})" if expected_message is not None else expected_type
+                    got = f"{type(exc).__name__}({str(exc)!r})"
+                    results.append(
+                        {"name": name, "passed": False, "details": f"Expected {want} to be raised, got {got}"}
+                    )
             else:
-                results.append(
-                    {"name": name, "passed": False, "details": f"Expected {expected!r}, got {actual!r}"}
-                )
-        except Exception:
-            results.append({"name": name, "passed": False, "details": format_user_exception()})
+                results.append({"name": name, "passed": False, "details": format_user_exception()})
+            continue
+
+        if expected_error:
+            expected_type = expected_error.get("type")
+            expected_message = expected_error.get("message")
+            want = f"{expected_type}({expected_message!r})" if expected_message is not None else expected_type
+            results.append(
+                {
+                    "name": name,
+                    "passed": False,
+                    "details": f"Expected {want} to be raised, but the function returned {actual!r} instead",
+                }
+            )
+            continue
+
+        expected = test.get("expected")
+        if actual == expected:
+            results.append({"name": name, "passed": True})
+        else:
+            results.append(
+                {"name": name, "passed": False, "details": f"Expected {expected!r}, got {actual!r}"}
+            )
     return results
 
 

@@ -54,6 +54,43 @@ const checks: Check[] = [
     },
   },
   {
+    name: 'passes an expectedError test when the right exception and message are raised',
+    run: async () => {
+      const result = await runSubmission(
+        'def add(a, b):\n    raise ValueError("bad input")\n',
+        [
+          {
+            name: 'rejects bad input',
+            functionName: 'add',
+            args: [2, 3],
+            expectedError: { type: 'ValueError', message: 'bad input' },
+          },
+        ],
+        CONFIG,
+      );
+      assert.deepEqual(result.testResults, [{ name: 'rejects bad input', passed: true }]);
+    },
+  },
+  {
+    name: 'fails an expectedError test when no exception is raised',
+    run: async () => {
+      const result = await runSubmission(
+        'def add(a, b):\n    return a + b\n',
+        [
+          {
+            name: 'rejects bad input',
+            functionName: 'add',
+            args: [2, 3],
+            expectedError: { type: 'ValueError', message: 'bad input' },
+          },
+        ],
+        CONFIG,
+      );
+      assert.equal(result.testResults[0]?.passed, false);
+      assert.match(result.testResults[0]?.details ?? '', /ValueError.*to be raised/);
+    },
+  },
+  {
     name: 'blocks network access from inside the sandbox',
     run: async () => {
       const result = await runSubmission(

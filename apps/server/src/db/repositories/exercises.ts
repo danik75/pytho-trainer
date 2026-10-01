@@ -11,6 +11,8 @@ interface ExerciseRow {
   difficulty: Difficulty;
   target_weak_spots: string;
   hidden_tests: string;
+  solution_code: string;
+  solution_explanation_md: string;
   created_at: string;
 }
 
@@ -24,6 +26,8 @@ function mapRow(row: ExerciseRow): Exercise {
     difficulty: row.difficulty,
     targetWeakSpots: JSON.parse(row.target_weak_spots) as string[],
     hiddenTests: JSON.parse(row.hidden_tests) as HiddenTestSpec[],
+    solutionCode: row.solution_code,
+    solutionExplanationMd: row.solution_explanation_md,
     createdAt: row.created_at,
   };
 }
@@ -36,14 +40,16 @@ export interface InsertExerciseInput {
   difficulty: Difficulty;
   targetWeakSpots: string[];
   hiddenTests: HiddenTestSpec[];
+  solutionCode?: string;
+  solutionExplanationMd?: string;
   rawAiResponse?: string;
 }
 
 export function insertExercise(db: Database.Database, input: InsertExerciseInput): Exercise {
   const id = randomUUID();
   db.prepare(
-    `INSERT INTO exercises (id, session_id, prompt_md, starter_code, concepts_md, difficulty, target_weak_spots, hidden_tests, raw_ai_response)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO exercises (id, session_id, prompt_md, starter_code, concepts_md, difficulty, target_weak_spots, hidden_tests, solution_code, solution_explanation_md, raw_ai_response)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.sessionId,
@@ -53,6 +59,8 @@ export function insertExercise(db: Database.Database, input: InsertExerciseInput
     input.difficulty,
     JSON.stringify(input.targetWeakSpots),
     JSON.stringify(input.hiddenTests),
+    input.solutionCode ?? '',
+    input.solutionExplanationMd ?? '',
     input.rawAiResponse ?? null,
   );
   return mapRow(db.prepare('SELECT * FROM exercises WHERE id = ?').get(id) as ExerciseRow);
