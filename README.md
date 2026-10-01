@@ -49,21 +49,23 @@ npm workspaces monorepo:
 ```bash
 git clone https://github.com/danik75/pytho-trainer.git
 cd pytho-trainer
-./start.sh
+./start.sh        # macOS/Linux
+start.bat         # Windows
 ```
 
 The first run will:
 
 1. Check Node and Docker are present and Docker is running
 2. Create `.env` from `.env.example` if it doesn't exist yet — **stop here,
-   open `.env`, and set `ANTHROPIC_API_KEY`**, then run `./start.sh` again
+   open `.env`, and set `ANTHROPIC_API_KEY`**, then re-run the script
 3. Run `npm install` if `node_modules` is missing
 4. Build the sandbox Docker image
 5. Start the backend (`http://localhost:3001`) and frontend
    (`http://localhost:5173`)
 
 Open **http://localhost:5173** once it's running. `npm start` is an alias for
-`./start.sh`.
+`./start.sh` (macOS/Linux only — Windows users should run `start.bat`
+directly).
 
 ### Configuration (`.env`)
 
