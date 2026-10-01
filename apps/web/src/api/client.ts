@@ -1,4 +1,5 @@
 import type {
+  AiSettings,
   DomainCatalogEntry,
   ExecutionResult,
   Exercise,
@@ -229,4 +230,15 @@ export function getOverview(): Promise<LearningOverview> {
 
 export function refreshOverview(): Promise<LearningOverview> {
   return request<LearningOverview>('/api/overview/refresh', { method: 'POST' });
+}
+
+export function getSettings(): Promise<AiSettings> {
+  return request<AiSettings>('/api/settings');
+}
+
+export function updateSettings(provider: string): Promise<AiSettings> {
+  return request<AiSettings>('/api/settings', {
+    method: 'POST',
+    body: JSON.stringify({ provider }),
+  });
 }

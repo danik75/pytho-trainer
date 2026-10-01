@@ -1,6 +1,6 @@
 import type { TheoryGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
-import { SONNET_MODEL } from './client';
+import { TIER_SMART } from './client';
 import { generateTheorySession } from './theory';
 
 const SAMPLE: TheoryGeneration = {
@@ -29,6 +29,6 @@ describe('generateTheorySession', () => {
     expect(result).toEqual(SAMPLE);
     expect(aiClient.requests[0]?.toolName).toBe('generate_theory_session');
     expect(aiClient.requests[0]?.messages[0]?.content).toContain('Recursion');
-    expect(aiClient.requests[0]?.model).toBe(SONNET_MODEL);
+    expect(aiClient.requests[0]?.tier).toBe(TIER_SMART);
   });
 });

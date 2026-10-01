@@ -1,6 +1,6 @@
 import type { OverviewNarrativeGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
-import { HAIKU_MODEL } from './client';
+import { TIER_FAST } from './client';
 import { generateOverviewNarrative } from './overview';
 
 const SAMPLE: OverviewNarrativeGeneration = {
@@ -22,6 +22,6 @@ describe('generateOverviewNarrative', () => {
     expect(result).toEqual(SAMPLE);
     expect(aiClient.requests[0]?.toolName).toBe('generate_learning_overview_narrative');
     expect(aiClient.requests[0]?.messages[0]?.content).toContain('Python Basics');
-    expect(aiClient.requests[0]?.model).toBe(HAIKU_MODEL);
+    expect(aiClient.requests[0]?.tier).toBe(TIER_FAST);
   });
 });

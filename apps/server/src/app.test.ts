@@ -19,7 +19,11 @@ const SANDBOX_CONFIG = { image: 'pytho-trainer-sandbox', timeoutMs: 5000, memory
 function buildTestApp(defaultAiResponse?: unknown) {
   const db = createTestDb();
   const aiClient = createFakeAiClient(defaultAiResponse);
-  return { app: buildApp({ db, aiClient, sandboxConfig: SANDBOX_CONFIG }), db, aiClient };
+  return {
+    app: buildApp({ db, aiClients: { anthropic: aiClient }, sandboxConfig: SANDBOX_CONFIG }),
+    db,
+    aiClient,
+  };
 }
 
 const SAMPLE_CURRICULUM: CurriculumGeneration = {
@@ -195,7 +199,7 @@ describe('app routes', () => {
     aiClient.createToolMessage = async () => {
       throw new Error('boom');
     };
-    const app = buildApp({ db, aiClient, sandboxConfig: SANDBOX_CONFIG });
+    const app = buildApp({ db, aiClients: { anthropic: aiClient }, sandboxConfig: SANDBOX_CONFIG });
 
     const response = await app.inject({ method: 'POST', url: '/api/curricula' });
     expect(response.statusCode).toBe(500);
@@ -675,6 +679,72 @@ describe('app routes', () => {
       expect(result.stdout).toBe('hi\n');
       expect(result.testResults).toEqual([]);
       expect(aiClient.requests).toHaveLength(0);
+    });
+  });
+
+  describe('AI provider settings', () => {
+    it('GET /api/settings reports the default provider and what is configured', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({ method: 'GET', url: '/api/settings' });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        currentProvider: 'anthropic',
+        availableProviders: ['anthropic'],
+      });
+    });
+
+    it('POST /api/settings rejects an unknown provider', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/settings',
+        payload: { provider: 'not-a-real-provider' },
+      });
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('POST /api/settings rejects a known provider with no configured client', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/settings',
+        payload: { provider: 'openai' },
+      });
+      expect(response.statusCode).toBe(409);
+    });
+
+    it('POST /api/settings switches the active provider, and later requests use it', async () => {
+      const db = createTestDb();
+      const anthropicClient = createFakeAiClient(SAMPLE_CURRICULUM);
+      const openaiClient = createFakeAiClient(SAMPLE_CURRICULUM);
+      const app = buildApp({
+        db,
+        aiClients: { anthropic: anthropicClient, openai: openaiClient },
+        sandboxConfig: SANDBOX_CONFIG,
+      });
+
+      const switchResponse = await app.inject({
+        method: 'POST',
+        url: '/api/settings',
+        payload: { provider: 'openai' },
+      });
+      expect(switchResponse.statusCode).toBe(200);
+      expect(switchResponse.json()).toEqual({
+        currentProvider: 'openai',
+        availableProviders: ['anthropic', 'openai'],
+      });
+
+      await app.inject({ method: 'POST', url: '/api/curricula' });
+      expect(anthropicClient.requests).toHaveLength(0);
+      expect(openaiClient.requests).toHaveLength(1);
+    });
+
+    it('fails a request with 409 when the selected provider has no configured client', async () => {
+      const db = createTestDb();
+      const app = buildApp({ db, aiClients: {}, sandboxConfig: SANDBOX_CONFIG });
+
+      const response = await app.inject({ method: 'POST', url: '/api/curricula' });
+      expect(response.statusCode).toBe(409);
     });
   });
 });

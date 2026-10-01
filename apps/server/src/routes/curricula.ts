@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type Database from 'better-sqlite3';
 import { NotFoundError } from '../errors';
-import type { AiClient } from '../ai/client';
+import type { AiClientResolver } from '../ai/client';
 import { createCurriculumForUser } from '../curricula/createCurriculumForUser';
 import { ensureLocalUser, LOCAL_USER_ID } from '../db/repositories/users';
 import { getActiveCurriculum } from '../db/repositories/curricula';
@@ -9,11 +9,11 @@ import { getActiveCurriculum } from '../db/repositories/curricula';
 export function registerCurriculaRoutes(
   app: FastifyInstance,
   db: Database.Database,
-  aiClient: AiClient,
+  resolveAiClient: AiClientResolver,
 ): void {
   app.post('/api/curricula', async (_request, reply) => {
     const user = ensureLocalUser(db);
-    const result = await createCurriculumForUser(db, aiClient, LOCAL_USER_ID, {
+    const result = await createCurriculumForUser(db, resolveAiClient(), LOCAL_USER_ID, {
       goals: user.goals,
       selfAssessedLevel: user.selfAssessedLevel,
       diagnosticNotes: user.diagnosticNotes,

@@ -5,6 +5,7 @@ import { SessionPage } from './pages/SessionPage';
 import { LearningOverviewPage } from './pages/LearningOverviewPage';
 import { SandboxPage } from './pages/SandboxPage';
 import { ThemeToggle } from './components/ThemeToggle';
+import { ProviderSelector } from './components/ProviderSelector';
 
 const NAV_LINKS = [
   { to: '/roadmap', label: 'Roadmap' },
@@ -35,6 +36,7 @@ function App() {
               </NavLink>
             ))}
           </nav>
+          <ProviderSelector />
           <ThemeToggle />
         </div>
       </header>

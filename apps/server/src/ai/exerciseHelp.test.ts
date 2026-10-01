@@ -1,6 +1,6 @@
 import type { ExerciseHelpAnswerGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
-import { HAIKU_MODEL } from './client';
+import { TIER_FAST } from './client';
 import { askExerciseQuestion } from './exerciseHelp';
 
 const SAMPLE: ExerciseHelpAnswerGeneration = {
@@ -22,7 +22,7 @@ describe('askExerciseQuestion', () => {
     expect(result).toEqual(SAMPLE);
     expect(aiClient.requests[0]?.toolName).toBe('answer_exercise_question');
     expect(aiClient.requests[0]?.messages[0]?.content).toContain('How do I loop over the list?');
-    expect(aiClient.requests[0]?.model).toBe(HAIKU_MODEL);
+    expect(aiClient.requests[0]?.tier).toBe(TIER_FAST);
   });
 
   it('includes prior conversation history in the prompt', async () => {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AiGenerationError } from '../errors';
-import type { AiClient } from './client';
+import type { AiClient, ModelTier } from './client';
 
 export interface StructuredGenerationRequest<T> {
   system: string;
@@ -10,7 +10,7 @@ export interface StructuredGenerationRequest<T> {
   schema: z.ZodType<T>;
   jsonSchema: Record<string, unknown>;
   maxTokens?: number;
-  model?: string;
+  tier?: ModelTier;
 }
 
 /**
@@ -32,7 +32,7 @@ export async function generateStructured<T>(
       toolDescription: request.toolDescription,
       inputSchema: request.jsonSchema,
       maxTokens: request.maxTokens,
-      model: request.model,
+      tier: request.tier,
     });
 
   const firstOutput = await attempt(request.userMessage);

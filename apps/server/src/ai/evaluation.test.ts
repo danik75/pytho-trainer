@@ -1,6 +1,6 @@
 import type { SubmissionEvaluationGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
-import { HAIKU_MODEL } from './client';
+import { TIER_FAST } from './client';
 import { evaluateSubmission } from './evaluation';
 
 const SAMPLE: SubmissionEvaluationGeneration = {
@@ -27,6 +27,6 @@ describe('evaluateSubmission', () => {
     expect(result).toEqual(SAMPLE);
     expect(aiClient.requests[0]?.toolName).toBe('evaluate_submission');
     expect(aiClient.requests[0]?.messages[0]?.content).toContain('adds');
-    expect(aiClient.requests[0]?.model).toBe(HAIKU_MODEL);
+    expect(aiClient.requests[0]?.tier).toBe(TIER_FAST);
   });
 });

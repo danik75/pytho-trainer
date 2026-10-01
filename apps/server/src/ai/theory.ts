@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { theoryGenerationSchema, type TheoryGeneration } from '@pytho-trainer/shared';
-import { SONNET_MODEL, type AiClient } from './client';
+import { TIER_SMART, type AiClient } from './client';
 import { generateStructured } from './generateStructured';
 import {
   THEORY_SYSTEM_PROMPT,
@@ -25,6 +25,6 @@ export async function generateTheorySession(
     schema: theoryGenerationSchema,
     jsonSchema: JSON_SCHEMA as Record<string, unknown>,
     maxTokens: 4096,
-    model: SONNET_MODEL,
+    tier: TIER_SMART,
   });
 }

@@ -13,31 +13,36 @@ import { registerExerciseRoutes } from './routes/exercises';
 import { registerTeachRoutes } from './routes/teach';
 import { registerOverviewRoutes } from './routes/overview';
 import { registerSandboxRoutes } from './routes/sandbox';
+import { registerSettingsRoutes } from './routes/settings';
 import type { AiClient } from './ai/client';
+import { createAiClientResolver } from './ai/resolveAiClient';
 import type { SandboxConfig } from './sandbox/runner';
 import { AiGenerationError, InvalidStateError, NotFoundError } from './errors';
+import type { AiProvider } from '@pytho-trainer/shared';
 
 export interface AppDependencies {
   db: Database.Database;
-  aiClient: AiClient;
+  aiClients: Partial<Record<AiProvider, AiClient>>;
   sandboxConfig: SandboxConfig;
 }
 
-export function buildApp({ db, aiClient, sandboxConfig }: AppDependencies): FastifyInstance {
+export function buildApp({ db, aiClients, sandboxConfig }: AppDependencies): FastifyInstance {
   const app = Fastify({ logger: true });
+  const resolveAiClient = createAiClientResolver(db, aiClients);
 
   registerHealthRoutes(app);
   registerUserRoutes(app, db);
   registerDomainRoutes(app);
   registerOnboardingRoutes(app, db);
-  registerCurriculaRoutes(app, db, aiClient);
+  registerCurriculaRoutes(app, db, resolveAiClient);
   registerRoadmapRoutes(app, db);
-  registerTopicRoutes(app, db, aiClient);
-  registerSessionRoutes(app, db, aiClient);
-  registerExerciseRoutes(app, db, aiClient, sandboxConfig);
-  registerTeachRoutes(app, db, aiClient);
-  registerOverviewRoutes(app, db, aiClient);
+  registerTopicRoutes(app, db, resolveAiClient);
+  registerSessionRoutes(app, db, resolveAiClient);
+  registerExerciseRoutes(app, db, resolveAiClient, sandboxConfig);
+  registerTeachRoutes(app, db, resolveAiClient);
+  registerOverviewRoutes(app, db, resolveAiClient);
   registerSandboxRoutes(app, sandboxConfig);
+  registerSettingsRoutes(app, db, aiClients);
 
   app.setErrorHandler<FastifyError>((error, _request, reply) => {
     if (error instanceof ZodError) {

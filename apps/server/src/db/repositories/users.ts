@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import type { User } from '@pytho-trainer/shared';
+import type { AiProvider, User } from '@pytho-trainer/shared';
 
 export const LOCAL_USER_ID = 'local-user';
 
@@ -63,4 +63,21 @@ export function updateUser(db: Database.Database, input: UpdateUserInput): User 
   );
 
   return getUser(db) as User;
+}
+
+export function getAiProvider(db: Database.Database): AiProvider {
+  ensureLocalUser(db);
+  const row = db.prepare('SELECT ai_provider FROM users WHERE id = ?').get(LOCAL_USER_ID) as {
+    ai_provider: AiProvider;
+  };
+  return row.ai_provider;
+}
+
+export function setAiProvider(db: Database.Database, provider: AiProvider): AiProvider {
+  ensureLocalUser(db);
+  db.prepare(`UPDATE users SET ai_provider = ?, updated_at = datetime('now') WHERE id = ?`).run(
+    provider,
+    LOCAL_USER_ID,
+  );
+  return provider;
 }

@@ -78,6 +78,26 @@ directly).
 | `SANDBOX_TIMEOUT_MS` | `10000`                 | Max wall-clock time per sandbox run |
 | `SANDBOX_MEMORY_MB`  | `128`                   | Memory limit per sandbox container  |
 
+### Switching AI providers
+
+Pytho Trainer can be powered by Claude (Anthropic), OpenAI, Azure OpenAI,
+Gemini (Google), or DeepSeek, and lets you switch between them from the app's
+Settings without restarting the server. `ANTHROPIC_API_KEY` is the only
+required key (Anthropic is the default); every other provider is optional and
+only shows up as a switchable option once its key is set in `.env`. See the
+commented-out block in `.env.example` for the full list of variables,
+including the per-tier model/deployment overrides. Each provider is used for
+two tiers of calls - a "smart" tier for quality-critical generation
+(curriculum, exercises, theory) and a "fast" tier for frequent/cheap calls
+(grading, narrative, chat) - and both default to a sensible model per
+provider if you don't override them.
+
+Azure OpenAI is the one exception: because Azure routes by deployment name
+rather than model name, and deployment names are entirely up to you, all four
+of `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`,
+`AZURE_OPENAI_SMART_DEPLOYMENT`, and `AZURE_OPENAI_FAST_DEPLOYMENT` are
+required together if you want to use it.
+
 ## Other scripts
 
 Run from the repo root:

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { exerciseHelpAnswerSchema, type ExerciseHelpAnswerGeneration } from '@pytho-trainer/shared';
-import { HAIKU_MODEL, type AiClient } from './client';
+import { TIER_FAST, type AiClient } from './client';
 import { generateStructured } from './generateStructured';
 import {
   EXERCISE_HELP_SYSTEM_PROMPT,
@@ -25,6 +25,6 @@ export async function askExerciseQuestion(
     schema: exerciseHelpAnswerSchema,
     jsonSchema: JSON_SCHEMA as Record<string, unknown>,
     maxTokens: 1536,
-    model: HAIKU_MODEL,
+    tier: TIER_FAST,
   });
 }

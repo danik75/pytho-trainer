@@ -6,12 +6,12 @@ import {
 } from '../curricula/getLearningOverview';
 import { LOCAL_USER_ID } from '../db/repositories/users';
 import { NotFoundError } from '../errors';
-import type { AiClient } from '../ai/client';
+import type { AiClientResolver } from '../ai/client';
 
 export function registerOverviewRoutes(
   app: FastifyInstance,
   db: Database.Database,
-  aiClient: AiClient,
+  resolveAiClient: AiClientResolver,
 ): void {
   app.get('/api/overview', async () => {
     const overview = getLearningOverview(db, LOCAL_USER_ID);
@@ -22,6 +22,6 @@ export function registerOverviewRoutes(
   });
 
   app.post('/api/overview/refresh', async () => {
-    return refreshLearningOverviewNarrative(db, aiClient, LOCAL_USER_ID);
+    return refreshLearningOverviewNarrative(db, resolveAiClient(), LOCAL_USER_ID);
   });
 }

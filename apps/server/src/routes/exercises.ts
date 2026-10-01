@@ -5,7 +5,7 @@ import { submitExercise } from '../sessions/submitExercise';
 import { runExerciseCode } from '../sessions/runExerciseCode';
 import { askExerciseHelp } from '../sessions/askExerciseHelp';
 import { listExerciseHelpMessages } from '../db/repositories/exerciseHelp';
-import type { AiClient } from '../ai/client';
+import type { AiClientResolver } from '../ai/client';
 import type { SandboxConfig } from '../sandbox/runner';
 
 const paramsSchema = z.object({ exerciseId: z.string() });
@@ -16,13 +16,13 @@ const askBodySchema = z.object({ question: z.string().min(1), code: z.string() }
 export function registerExerciseRoutes(
   app: FastifyInstance,
   db: Database.Database,
-  aiClient: AiClient,
+  resolveAiClient: AiClientResolver,
   sandboxConfig: SandboxConfig,
 ): void {
   app.post('/api/exercises/:exerciseId/submit', async (request, reply) => {
     const { exerciseId } = paramsSchema.parse(request.params);
     const { code } = submitBodySchema.parse(request.body);
-    const result = await submitExercise(db, aiClient, sandboxConfig, exerciseId, code);
+    const result = await submitExercise(db, resolveAiClient(), sandboxConfig, exerciseId, code);
     return reply.status(201).send(result);
   });
 
@@ -41,7 +41,7 @@ export function registerExerciseRoutes(
   app.post('/api/exercises/:exerciseId/help', async (request, reply) => {
     const { exerciseId } = paramsSchema.parse(request.params);
     const { question, code } = askBodySchema.parse(request.body);
-    const messages = await askExerciseHelp(db, aiClient, exerciseId, question, code);
+    const messages = await askExerciseHelp(db, resolveAiClient(), exerciseId, question, code);
     return reply.status(201).send(messages);
   });
 }

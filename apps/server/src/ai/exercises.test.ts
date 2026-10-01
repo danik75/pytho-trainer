@@ -1,6 +1,6 @@
 import type { ExerciseGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
-import { SONNET_MODEL } from './client';
+import { TIER_SMART } from './client';
 import { generateExercise } from './exercises';
 
 const SAMPLE: ExerciseGeneration = {
@@ -27,6 +27,6 @@ describe('generateExercise', () => {
 
     expect(result).toEqual(SAMPLE);
     expect(aiClient.requests[0]?.toolName).toBe('generate_exercise');
-    expect(aiClient.requests[0]?.model).toBe(SONNET_MODEL);
+    expect(aiClient.requests[0]?.tier).toBe(TIER_SMART);
   });
 });

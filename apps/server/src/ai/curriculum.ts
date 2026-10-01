@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { curriculumGenerationSchema, type CurriculumGeneration } from '@pytho-trainer/shared';
-import { SONNET_MODEL, type AiClient } from './client';
+import { TIER_SMART, type AiClient } from './client';
 import { generateStructured } from './generateStructured';
 import {
   CURRICULUM_SYSTEM_PROMPT,
@@ -25,6 +25,6 @@ export async function generateCurriculum(
     schema: curriculumGenerationSchema,
     jsonSchema: JSON_SCHEMA as Record<string, unknown>,
     maxTokens: 8192,
-    model: SONNET_MODEL,
+    tier: TIER_SMART,
   });
 }

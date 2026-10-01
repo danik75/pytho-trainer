@@ -1,3 +1,10 @@
+import type { AiProvider } from './aiProviderCatalog';
+
+export interface AiSettings {
+  currentProvider: AiProvider;
+  availableProviders: AiProvider[];
+}
+
 export type TrackKind = 'foundations' | 'domain';
 
 export type TopicOrigin = 'roadmap' | 'on_demand';

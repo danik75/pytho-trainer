@@ -6,7 +6,9 @@ jest.mock('@anthropic-ai/sdk', () => {
   }));
 });
 
-import { createAnthropicClient } from './client';
+import { createAnthropicClient } from './anthropic';
+
+const MODELS = { smart: 'claude-sonnet-5', fast: 'claude-haiku-4-5-20251001' };
 
 describe('createAnthropicClient', () => {
   beforeEach(() => {
@@ -21,7 +23,7 @@ describe('createAnthropicClient', () => {
       ],
     });
 
-    const client = createAnthropicClient('test-key');
+    const client = createAnthropicClient('test-key', MODELS);
     const result = await client.createToolMessage({
       system: 'sys',
       messages: [{ role: 'user', content: 'hi' }],
@@ -38,6 +40,25 @@ describe('createAnthropicClient', () => {
     expect(callArgs.model).toBe('claude-sonnet-5');
   });
 
+  it('resolves the fast-tier model when requested', async () => {
+    mockCreate.mockResolvedValue({
+      content: [{ type: 'tool_use', id: 't1', name: 'my_tool', input: { foo: 'bar' } }],
+    });
+
+    const client = createAnthropicClient('test-key', MODELS);
+    await client.createToolMessage({
+      system: 'sys',
+      messages: [{ role: 'user', content: 'hi' }],
+      toolName: 'my_tool',
+      toolDescription: 'desc',
+      inputSchema: { type: 'object' },
+      tier: 'fast',
+    });
+
+    const callArgs = mockCreate.mock.calls[0]?.[0];
+    expect(callArgs.model).toBe('claude-haiku-4-5-20251001');
+  });
+
   it('retries once when no tool_use block is returned, then succeeds', async () => {
     mockCreate
       .mockResolvedValueOnce({ content: [{ type: 'text', text: 'no tool call' }] })
@@ -45,7 +66,7 @@ describe('createAnthropicClient', () => {
         content: [{ type: 'tool_use', id: 't1', name: 'my_tool', input: { foo: 'bar' } }],
       });
 
-    const client = createAnthropicClient('test-key');
+    const client = createAnthropicClient('test-key', MODELS);
     const result = await client.createToolMessage({
       system: 'sys',
       messages: [{ role: 'user', content: 'hi' }],
@@ -61,7 +82,7 @@ describe('createAnthropicClient', () => {
   it('throws once retries are exhausted with no tool_use block', async () => {
     mockCreate.mockResolvedValue({ content: [{ type: 'text', text: 'no tool call' }] });
 
-    const client = createAnthropicClient('test-key');
+    const client = createAnthropicClient('test-key', MODELS);
 
     await expect(
       client.createToolMessage({

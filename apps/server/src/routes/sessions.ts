@@ -5,7 +5,7 @@ import { getStudySession } from '../db/repositories/sessions';
 import { getLatestExerciseBySession } from '../db/repositories/exercises';
 import { listExamQuestionsBySession } from '../db/repositories/examQuestions';
 import { NotFoundError } from '../errors';
-import type { AiClient } from '../ai/client';
+import type { AiClientResolver } from '../ai/client';
 import { submitExam } from '../sessions/submitExam';
 
 const paramsSchema = z.object({ sessionId: z.string() });
@@ -14,7 +14,7 @@ const examSubmitBodySchema = z.object({ answers: z.record(z.string(), z.string()
 export function registerSessionRoutes(
   app: FastifyInstance,
   db: Database.Database,
-  aiClient: AiClient,
+  resolveAiClient: AiClientResolver,
 ): void {
   app.get('/api/sessions/:sessionId', async (request) => {
     const { sessionId } = paramsSchema.parse(request.params);
@@ -49,7 +49,7 @@ export function registerSessionRoutes(
   app.post('/api/sessions/:sessionId/exam/submit', async (request, reply) => {
     const { sessionId } = paramsSchema.parse(request.params);
     const { answers } = examSubmitBodySchema.parse(request.body);
-    const result = await submitExam(db, aiClient, sessionId, answers);
+    const result = await submitExam(db, resolveAiClient(), sessionId, answers);
     return reply.status(201).send(result);
   });
 }

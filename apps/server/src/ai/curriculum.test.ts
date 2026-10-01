@@ -1,6 +1,6 @@
 import type { CurriculumGeneration } from '@pytho-trainer/shared';
 import { createFakeAiClient } from '../testUtils/fakeAiClient';
-import { SONNET_MODEL } from './client';
+import { TIER_SMART } from './client';
 import { generateCurriculum } from './curriculum';
 
 const SAMPLE: CurriculumGeneration = {
@@ -39,6 +39,6 @@ describe('generateCurriculum', () => {
     expect(aiClient.requests).toHaveLength(1);
     expect(aiClient.requests[0]?.toolName).toBe('generate_curriculum');
     expect(aiClient.requests[0]?.messages[0]?.content).toContain('Learn Python');
-    expect(aiClient.requests[0]?.model).toBe(SONNET_MODEL);
+    expect(aiClient.requests[0]?.tier).toBe(TIER_SMART);
   });
 });
