@@ -7,6 +7,8 @@ import { insertTrack } from '../db/repositories/tracks';
 import { insertTopic } from '../db/repositories/topics';
 import { insertRoadmapEntry, getRoadmapEntryByTopic } from '../db/repositories/roadmap';
 import { insertMasteryRecord, getMasteryRecordByTopic } from '../db/repositories/mastery';
+import { insertStudySession } from '../db/repositories/sessions';
+import { insertExercise } from '../db/repositories/exercises';
 import { InvalidStateError, NotFoundError } from '../errors';
 import { startTopic } from './startTopic';
 
@@ -21,7 +23,7 @@ const SAMPLE_EXERCISE: ExerciseGeneration = {
 
 function setupTopic(
   db: ReturnType<typeof createTestDb>,
-  status: 'locked' | 'available' | 'mastered',
+  status: 'locked' | 'available' | 'in_progress' | 'mastered',
 ) {
   ensureLocalUser(db);
   const curriculum = insertCurriculum(db, {
@@ -119,5 +121,43 @@ describe('startTopic', () => {
     expect(result.exercise.prompt).toBe(SAMPLE_EXERCISE.prompt);
     expect(getRoadmapEntryByTopic(db, topic.id)?.status).toBe('in_progress');
     expect(getMasteryRecordByTopic(db, topic.id)?.status).toBe('in_progress');
+  });
+
+  it('resumes the existing exercise session for an in_progress topic instead of generating a new one', async () => {
+    const db = createTestDb();
+    const topic = setupTopic(db, 'in_progress');
+    const session = insertStudySession(db, {
+      topicId: topic.id,
+      sessionType: 'exercise',
+      sessionNumber: 1,
+    });
+    const exercise = insertExercise(db, {
+      sessionId: session.id,
+      prompt: 'Already in progress - has unsaved student code',
+      starterCode: 'def add(a, b):\n    pass\n',
+      difficulty: 'intro',
+      targetWeakSpots: [],
+      hiddenTests: [],
+    });
+    const aiClient = createFakeAiClient(SAMPLE_EXERCISE);
+
+    const result = await startTopic(db, aiClient, topic.id);
+
+    expect(result.session.id).toBe(session.id);
+    expect(result.exercise.id).toBe(exercise.id);
+    expect(result.exercise.prompt).toBe('Already in progress - has unsaved student code');
+    expect(aiClient.requests).toHaveLength(0);
+  });
+
+  it('generates a new exercise for an in_progress topic when the latest session is not an exercise', async () => {
+    const db = createTestDb();
+    const topic = setupTopic(db, 'in_progress');
+    insertStudySession(db, { topicId: topic.id, sessionType: 'theory', sessionNumber: 1 });
+    const aiClient = createFakeAiClient(SAMPLE_EXERCISE);
+
+    const result = await startTopic(db, aiClient, topic.id);
+
+    expect(result.session.sessionNumber).toBe(2);
+    expect(result.exercise.prompt).toBe(SAMPLE_EXERCISE.prompt);
   });
 });

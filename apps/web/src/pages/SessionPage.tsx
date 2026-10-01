@@ -68,6 +68,42 @@ function DecisionOutcome({
 
 type ExercisePageTab = 'exercise' | 'code';
 
+interface ExerciseDraft {
+  code: string;
+  activeTab: ExercisePageTab;
+}
+
+const DRAFT_STORAGE_PREFIX = 'pytho-trainer-draft:';
+
+// Drafts live in localStorage (not the backend) so returning to an exercise -
+// via a page reload, the back button, or just revisiting the roadmap - never
+// silently discards code the student already wrote, without needing a
+// "save" step for work that was never submitted.
+function loadExerciseDraft(exerciseId: string): ExerciseDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_STORAGE_PREFIX + exerciseId);
+    return raw ? (JSON.parse(raw) as ExerciseDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveExerciseDraft(exerciseId: string, draft: ExerciseDraft): void {
+  try {
+    localStorage.setItem(DRAFT_STORAGE_PREFIX + exerciseId, JSON.stringify(draft));
+  } catch {
+    // ignore - the draft just won't persist (e.g. private browsing)
+  }
+}
+
+function clearExerciseDraft(exerciseId: string): void {
+  try {
+    localStorage.removeItem(DRAFT_STORAGE_PREFIX + exerciseId);
+  } catch {
+    // ignore
+  }
+}
+
 function ExerciseSession({
   sessionId,
   explanationMd,
@@ -86,10 +122,20 @@ function ExerciseSession({
 
   useEffect(() => {
     if (initialExercise) {
+      const draft = loadExerciseDraft(initialExercise.id);
       setExercise(initialExercise);
-      setCode(initialExercise.starterCode);
+      setCode(draft?.code ?? initialExercise.starterCode);
+      setActiveTab(draft?.activeTab ?? 'exercise');
     }
   }, [initialExercise]);
+
+  // Persist whatever the student has typed (and which tab they're on) as
+  // they go, so it survives a reload or navigating away before they submit.
+  useEffect(() => {
+    if (exercise) {
+      saveExerciseDraft(exercise.id, { code, activeTab });
+    }
+  }, [exercise, code, activeTab]);
 
   const runMutation = useMutation({
     mutationFn: () => runExerciseCode(exercise!.id, code),
@@ -98,15 +144,25 @@ function ExerciseSession({
   const mutation = useMutation({
     mutationFn: () => submitExerciseCode(exercise!.id, code),
     onMutate: () => runMutation.reset(),
+    onSuccess: (outcome) => {
+      // Nothing more to come back and edit for this exercise once it's
+      // mastered, flagged struggling, or handed off to a theory session.
+      if (outcome.decision !== 'next_exercise' && exercise) {
+        clearExerciseDraft(exercise.id);
+      }
+    },
   });
 
   function handleContinueToNextExercise() {
-    if (mutation.data?.nextExercise) {
-      setExercise(mutation.data.nextExercise);
-      setCode(mutation.data.nextExercise.starterCode);
+    if (mutation.data?.nextExercise && exercise) {
+      clearExerciseDraft(exercise.id);
+      const next = mutation.data.nextExercise;
+      const draft = loadExerciseDraft(next.id);
+      setExercise(next);
+      setCode(draft?.code ?? next.starterCode);
+      setActiveTab(draft?.activeTab ?? 'exercise');
       mutation.reset();
       runMutation.reset();
-      setActiveTab('exercise');
     }
   }
 

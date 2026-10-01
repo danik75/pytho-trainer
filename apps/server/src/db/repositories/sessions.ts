@@ -55,3 +55,13 @@ export function countSessionsForTopic(db: Database.Database, topicId: string): n
     .get(topicId) as { count: number };
   return row.count;
 }
+
+export function getLatestSessionForTopic(
+  db: Database.Database,
+  topicId: string,
+): StudySession | null {
+  const row = db
+    .prepare('SELECT * FROM study_sessions WHERE topic_id = ? ORDER BY session_number DESC LIMIT 1')
+    .get(topicId) as StudySessionRow | undefined;
+  return row ? mapRow(row) : null;
+}

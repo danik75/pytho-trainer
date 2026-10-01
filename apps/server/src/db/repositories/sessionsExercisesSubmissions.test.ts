@@ -3,7 +3,12 @@ import { ensureLocalUser, LOCAL_USER_ID } from './users';
 import { insertCurriculum } from './curricula';
 import { insertTrack } from './tracks';
 import { insertTopic } from './topics';
-import { insertStudySession, getStudySession, countSessionsForTopic } from './sessions';
+import {
+  insertStudySession,
+  getStudySession,
+  countSessionsForTopic,
+  getLatestSessionForTopic,
+} from './sessions';
 import {
   insertExercise,
   getExercise,
@@ -54,6 +59,22 @@ describe('study_sessions repository', () => {
     expect(countSessionsForTopic(db, topic.id)).toBe(1);
     expect(getStudySession(db, session.id)?.id).toBe(session.id);
     expect(getStudySession(db, 'missing')).toBeNull();
+  });
+
+  it('returns the most recently numbered session for a topic, or null if none exist', () => {
+    const db = createTestDb();
+    const topic = setupTopic(db);
+
+    expect(getLatestSessionForTopic(db, topic.id)).toBeNull();
+
+    insertStudySession(db, { topicId: topic.id, sessionType: 'exercise', sessionNumber: 1 });
+    const second = insertStudySession(db, {
+      topicId: topic.id,
+      sessionType: 'theory',
+      sessionNumber: 2,
+    });
+
+    expect(getLatestSessionForTopic(db, topic.id)?.id).toBe(second.id);
   });
 });
 
