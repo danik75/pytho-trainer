@@ -178,6 +178,17 @@ export function askExerciseHelp(
   });
 }
 
+export function analyzeExecutionResult(
+  exerciseId: string,
+  code: string,
+  executionResult: ExecutionResult,
+): Promise<ExerciseHelpMessage[]> {
+  return request<ExerciseHelpMessage[]>(`/api/exercises/${exerciseId}/analyze-result`, {
+    method: 'POST',
+    body: JSON.stringify({ code, executionResult }),
+  });
+}
+
 // The answer key (correctAnswer/gradingNotes) is never sent to the client.
 export interface ClientExamQuestion {
   id: string;

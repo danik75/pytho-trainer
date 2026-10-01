@@ -174,6 +174,64 @@ Student's new question: ${input.question}
 Answer the student's question now.`;
 }
 
+export interface AnalyzeResultInput {
+  exercisePrompt: string;
+  conceptsMd: string;
+  code: string;
+  stdout: string;
+  stderr: string;
+  timedOut: boolean;
+  testResults: TestResult[];
+  history: ExerciseHelpChatMessage[];
+}
+
+export const ANALYZE_RESULT_SYSTEM_PROMPT = `You are a friendly, patient Python tutor helping a student understand what just happened when they ran their code, in a live sidebar chat next to their editor.
+
+Rules:
+- Unlike general questions in this chat, you ARE given the actual run output (stdout/stderr) and the hidden test results for this run - the student already sees this same output in the UI, so explain it rather than withholding it.
+- If there's an error (stderr/traceback) or a timeout, explain what went wrong and why, pointing at the specific line or concept responsible.
+- If tests failed, explain what the failure means in plain language and what the code is doing differently from what's expected - without simply handing over a corrected solution unless the student would clearly benefit more from seeing one (e.g. they've already failed the same thing multiple times in this chat history).
+- If everything passed, briefly affirm why the code works and note anything worth improving (style, edge cases, a more idiomatic approach) - don't invent a problem that isn't there.
+- Keep it focused and conversational (markdown allowed, short code blocks welcome), not a full lecture.`;
+
+export function buildAnalyzeResultUserMessage(input: AnalyzeResultInput): string {
+  const testSummary = input.testResults
+    .map(
+      (test) =>
+        `- ${test.name}: ${test.passed ? 'passed' : `failed (${test.details ?? 'no details'})`}`,
+    )
+    .join('\n');
+  const historyBlock =
+    input.history.length > 0
+      ? input.history
+          .map((m) => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`)
+          .join('\n\n')
+      : '(no prior messages in this chat)';
+
+  return `Exercise prompt:
+${input.exercisePrompt}
+
+Concepts primer already shown to the student:
+${input.conceptsMd}
+
+Student's code that was just run:
+\`\`\`python
+${input.code || '(empty)'}
+\`\`\`
+
+${input.timedOut ? 'The run TIMED OUT before finishing.' : ''}
+Test results from this run:
+${testSummary || '(no hidden tests)'}
+
+Program stdout: ${input.stdout || '(empty)'}
+Program stderr: ${input.stderr || '(empty)'}
+
+Conversation so far:
+${historyBlock}
+
+Explain this result to the student now.`;
+}
+
 export interface TheoryGenerationInput {
   topic: string;
   context: string;

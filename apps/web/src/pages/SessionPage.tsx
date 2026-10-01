@@ -15,9 +15,11 @@ import {
 import { ExplanationView } from '../components/ExplanationView';
 import { CodeEditor } from '../components/CodeEditor';
 import { ExecutionResultPanel } from '../components/ExecutionResultPanel';
+import { AnalyzeResultButton } from '../components/AnalyzeResultButton';
 import { EvaluationFeedback } from '../components/EvaluationFeedback';
 import { ExamForm } from '../components/ExamForm';
 import { TutorSidebar } from '../components/TutorSidebar';
+import { SandboxPanel } from '../components/SandboxPanel';
 import { Spinner } from '../components/Spinner';
 
 function DecisionOutcome({
@@ -66,7 +68,7 @@ function DecisionOutcome({
   return null;
 }
 
-type ExercisePageTab = 'exercise' | 'code' | 'results';
+type ExercisePageTab = 'exercise' | 'code' | 'sandbox' | 'results';
 
 interface ExerciseDraft {
   code: string;
@@ -191,6 +193,13 @@ function ExerciseSession({
             </button>
             <button
               type="button"
+              className={activeTab === 'sandbox' ? 'page-tab page-tab--active' : 'page-tab'}
+              onClick={() => setActiveTab('sandbox')}
+            >
+              Sandbox
+            </button>
+            <button
+              type="button"
               className={activeTab === 'results' ? 'page-tab page-tab--active' : 'page-tab'}
               onClick={() => setActiveTab('results')}
             >
@@ -255,6 +264,16 @@ function ExerciseSession({
               </div>
             )}
 
+            {activeTab === 'sandbox' && (
+              <div>
+                <p className="loading-hint">
+                  A separate scratch space to try out syntax or experiment - it doesn&apos;t touch
+                  your exercise code above, and nothing here is graded.
+                </p>
+                <SandboxPanel />
+              </div>
+            )}
+
             {activeTab === 'results' && (
               <div>
                 {!runMutation.data &&
@@ -274,6 +293,11 @@ function ExerciseSession({
                   <div className="session-block">
                     <h4>Quick run (not graded)</h4>
                     <ExecutionResultPanel result={runMutation.data} />
+                    <AnalyzeResultButton
+                      exerciseId={exercise.id}
+                      code={code}
+                      executionResult={runMutation.data}
+                    />
                   </div>
                 )}
                 {mutation.isError && (
@@ -284,6 +308,11 @@ function ExerciseSession({
                 {mutation.data && (
                   <div>
                     <ExecutionResultPanel result={mutation.data.result} />
+                    <AnalyzeResultButton
+                      exerciseId={exercise.id}
+                      code={code}
+                      executionResult={mutation.data.result}
+                    />
                     {mutation.data.result.aiEvaluation && (
                       <EvaluationFeedback evaluation={mutation.data.result.aiEvaluation} />
                     )}

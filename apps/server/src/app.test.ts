@@ -547,6 +547,66 @@ describe('app routes', () => {
       });
       expect(response.statusCode).toBe(404);
     });
+
+    it('analyzes a run result, persisting it into the same tutor chat thread as help', async () => {
+      const { app, aiClient } = buildTestApp(SAMPLE_CURRICULUM);
+      const { availableTopicId } = await setUpCurriculumAndTopic(app);
+
+      aiClient.enqueue(SAMPLE_EXERCISE);
+      const startResponse = await app.inject({
+        method: 'POST',
+        url: `/api/topics/${availableTopicId}/start`,
+      });
+      const { exercise } = startResponse.json();
+
+      aiClient.enqueue(SAMPLE_HELP_ANSWER);
+      const analyzeResponse = await app.inject({
+        method: 'POST',
+        url: `/api/exercises/${exercise.id}/analyze-result`,
+        payload: {
+          code: 'def add(a, b):\n    return x\n',
+          executionResult: {
+            stdout: '',
+            stderr: "NameError: name 'x' is not defined",
+            exitCode: 1,
+            timedOut: false,
+            testResults: [{ name: 'adds two numbers', passed: false, details: 'raised error' }],
+          },
+        },
+      });
+      expect(analyzeResponse.statusCode).toBe(201);
+      const messages = analyzeResponse.json();
+      expect(messages).toHaveLength(2);
+      expect(messages[1]).toMatchObject({ role: 'assistant', content: SAMPLE_HELP_ANSWER.answer });
+
+      const analyzeToolCall = aiClient.requests.find((r) => r.toolName === 'explain_run_result');
+      expect(analyzeToolCall?.messages[0]?.content).toContain("NameError: name 'x' is not defined");
+
+      const historyResponse = await app.inject({
+        method: 'GET',
+        url: `/api/exercises/${exercise.id}/help`,
+      });
+      expect(historyResponse.json()).toHaveLength(2);
+    });
+
+    it('POST /api/exercises/:exerciseId/analyze-result returns 404 for an unknown exercise', async () => {
+      const { app } = buildTestApp();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/exercises/missing/analyze-result',
+        payload: {
+          code: '',
+          executionResult: {
+            stdout: '',
+            stderr: '',
+            exitCode: 0,
+            timedOut: false,
+            testResults: [],
+          },
+        },
+      });
+      expect(response.statusCode).toBe(404);
+    });
   });
 
   describe('theory sessions, exams, and on-demand teaching', () => {
