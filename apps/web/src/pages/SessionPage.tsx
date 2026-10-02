@@ -331,7 +331,10 @@ function ExerciseSession({
             )}
 
             {activeTab === 'code' && (
-              <div>
+              // Fills the tab's available height so only the editor scrolls
+              // for long code - the Run/Submit row stays pinned below it,
+              // never pushed off-screen by a tall editor.
+              <div className="code-panel">
                 <CodeEditor value={code} onChange={setCode} />
                 <div className="button-row">
                   <button
@@ -373,12 +376,12 @@ function ExerciseSession({
             )}
 
             {activeTab === 'sandbox' && (
-              <div>
+              <div className="code-panel">
                 <p className="chat-hint">
                   A separate scratch space - doesn&apos;t touch your exercise code, nothing here is
                   graded.
                 </p>
-                <SandboxPanel editorHeight="360px" />
+                <SandboxPanel />
               </div>
             )}
 

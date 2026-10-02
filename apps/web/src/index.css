@@ -299,6 +299,15 @@ pre {
   min-height: 0;
 }
 
+/* The standalone Sandbox page has no .session-layout wrapper (no tutor
+   sidebar to share space with) - its .session-panel sits directly in the
+   column, so it needs the same flex-grow treatment to get a definite height
+   for the code-panel/editor fill-height chain below it to resolve against. */
+.session-page > .session-panel {
+  flex: 1;
+  min-height: 0;
+}
+
 .session-page > .back-link {
   flex-shrink: 0;
 }
@@ -895,6 +904,31 @@ legend {
   display: flex;
   gap: var(--space-3);
   margin-bottom: var(--space-1);
+}
+
+/* Fills whatever height its container gives it and keeps the Run/Submit row
+   pinned at the bottom - only the editor itself scrolls for long code, so
+   the action buttons are never pushed off-screen. Used both as the direct
+   (non-flex) content of a tab body, where `height: 100%` does the work, and
+   nested as a flex item (e.g. the Sandbox tab's editor sitting below an
+   intro line), where `flex: 1` takes over instead. */
+.code-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+}
+
+.code-panel .editor-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.code-panel > .button-row,
+.code-panel > .loading-hint,
+.code-panel > .chat-hint {
+  flex-shrink: 0;
 }
 
 .execution-result {

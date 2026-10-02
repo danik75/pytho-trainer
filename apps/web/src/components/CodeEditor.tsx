@@ -7,7 +7,7 @@ interface CodeEditorProps {
   height?: string;
 }
 
-export function CodeEditor({ value, onChange, height = '480px' }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, height = '100%' }: CodeEditorProps) {
   const { theme } = useTheme();
 
   return (
